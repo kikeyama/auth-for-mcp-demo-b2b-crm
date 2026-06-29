@@ -1,0 +1,111 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: nexuscrm_db
+      POSTGRES_USER: nexuscrm_user
+      POSTGRES_PASSWORD: nexuscrm_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nexuscrm_user -d nexuscrm_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  account:
+    build:
+      context: ./services/account
+    ports:
+      - '3001:3001'
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://nexuscrm_user:nexuscrm_password@postgres:5432/nexuscrm_db
+      AUTH0_ISSUER_BASE_URL: ${AUTH0_ISSUER_BASE_URL}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  opportunity:
+    build:
+      context: ./services/opportunity
+    ports:
+      - '3002:3002'
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgresql://nexuscrm_user:nexuscrm_password@postgres:5432/nexuscrm_db
+      AUTH0_ISSUER_BASE_URL: ${AUTH0_ISSUER_BASE_URL}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  contact:
+    build:
+      context: ./services/contact
+    ports:
+      - '3003:3003'
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgresql://nexuscrm_user:nexuscrm_password@postgres:5432/nexuscrm_db
+      AUTH0_ISSUER_BASE_URL: ${AUTH0_ISSUER_BASE_URL}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  activity:
+    build:
+      context: ./services/activity
+    ports:
+      - '3004:3004'
+    environment:
+      PORT: 3004
+      DATABASE_URL: postgresql://nexuscrm_user:nexuscrm_password@postgres:5432/nexuscrm_db
+      AUTH0_ISSUER_BASE_URL: ${AUTH0_ISSUER_BASE_URL}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - '3000:3000'
+    environment:
+      AUTH0_SECRET: ${AUTH0_SECRET}
+      APP_BASE_URL: http://localhost:3000
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+      AUTH0_CLIENT_SECRET: ${AUTH0_CLIENT_SECRET}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      AUTH0_SCOPE: openid profile email read:accounts create:accounts update:accounts delete:accounts read:opportunities create:opportunities update:opportunities delete:opportunities read:contacts create:contacts update:contacts delete:contacts read:activities create:activities update:activities delete:activities
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      ACCOUNT_SERVICE_URL: http://account:3001
+      OPPORTUNITY_SERVICE_URL: http://opportunity:3002
+      CONTACT_SERVICE_URL: http://contact:3003
+      ACTIVITY_SERVICE_URL: http://activity:3004
+    depends_on:
+      - account
+      - opportunity
+      - contact
+      - activity
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
