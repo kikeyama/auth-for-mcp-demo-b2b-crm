@@ -14,6 +14,7 @@ npm run dev --prefix services/opportunity  # port 3002
 npm run dev --prefix services/contact      # port 3003
 npm run dev --prefix services/activity     # port 3004
 npm run dev --prefix services/user         # port 3005
+npm run dev --prefix services/mcp          # port 3006
 npm run dev --prefix frontend              # port 3000
 
 # Frontend only
@@ -40,6 +41,8 @@ Services run with `ts-node-dev --respawn --transpile-only`, so file changes auto
 
 Key difference: `AUTH0_DOMAIN` (frontend, no scheme) vs `AUTH0_ISSUER_BASE_URL` (microservices, full `https://` URL).
 
+The `services/mcp` service uses `AUTH0_DOMAIN` (no scheme, same as frontend) with `@auth0/auth0-api-js` — not `AUTH0_ISSUER_BASE_URL`.
+
 ## Architecture
 
 ### Services and ports
@@ -51,6 +54,7 @@ Key difference: `AUTH0_DOMAIN` (frontend, no scheme) vs `AUTH0_ISSUER_BASE_URL` 
 | contact | 3003 | Contacts CRUD |
 | activity | 3004 | Activities CRUD |
 | user | 3005 | Users sync & CRUD |
+| mcp | 3006 | MCP server for AI agents |
 | PostgreSQL | 5432 | Single shared DB |
 
 ### Two data-fetch paths in the frontend
@@ -89,6 +93,30 @@ Every service uses `express-oauth2-jwt-bearer` to validate tokens. `src/middlewa
 - `getTokenClaims(req)` — extracts `{ orgId, userId }` from the validated token
 
 All routes apply `router.use(checkJwt, requireOrg)` at the top.
+
+### MCP server (`services/mcp`)
+
+Built with `fastmcp` ^4.3.2. Exposes 17 CRM tools (CRUD for accounts, opportunities, contacts, activities + `list_opportunity_history`) at `/mcp` (HTTP Streamable transport).
+
+Auth0's "Auth for MCP" feature is enabled via the `oauth` block in `src/index.ts`:
+- `/.well-known/oauth-protected-resource` — RFC 9728 metadata, served by fastmcp automatically
+- `/.well-known/oauth-authorization-server` — points AI clients to Auth0 for token issuance
+
+**RFC 9728 `resource` field**: `protectedResource.resource` must be the MCP server's own URL (e.g. `` `${config.mcpServerUrl}/mcp` `` = `http://localhost:3006/mcp`), NOT `AUTH0_AUDIENCE`. These are separate concepts — mcp-remote v0.1.38 validates this and rejects mismatches.
+
+**`authorizationEndpoint` includes `?audience=`**: mcp-remote does not add an `audience=` parameter to auth requests. Without it, Auth0 issues an opaque token instead of a JWT. Fix: embed it directly — `` `https://${config.auth0.domain}/authorize?audience=${config.auth0.audience}` ``.
+
+**CIMD (Client ID Metadata Document)** is the primary client registration mechanism. `client_id_metadata_document_supported: true` is set in the `authorizationServer` block with `as any` cast because fastmcp's TypeScript type predates this field. DCR (`registrationEndpoint`) is kept as fallback. Auth0 tenant prerequisite: **Settings → Advanced → Client ID Metadata Document Registration** must be enabled. CIMD is preferred over DCR because Auth0 DCR has no client expiry or auto-deletion, causing unbounded Application object growth in production.
+
+**CIMD + Auth0 Organizations limitation**: CIMD-registered clients become 3rd party apps in Auth0, which cannot be assigned to Organizations → `org_id` claim is never included in the token → `authenticate()` throws `'Organization context required'`. Workaround: pre-register a Native app in Auth0, assign it to the Organization, and use `--static-oauth-client-info '{"client_id":"<ID>"}'` with mcp-remote to bypass both DCR and CIMD. mcp-remote v0.1.38 does not implement `clientMetadataUrl`, so CIMD is never attempted anyway — it always falls through to DCR.
+
+**Claude Desktop callback port**: mcp-remote computes the callback port deterministically as `3335 + parseInt(md5(serverUrl).substring(0,4), 16) % 45816`. For `http://localhost:3006/mcp` the port is **12739** — register `http://localhost:12739/oauth/callback` as the Allowed Callback URL in the Auth0 Native app.
+
+Token validation: `@auth0/auth0-api-js` (`ApiClient.verifyAccessToken` + `getToken`). The `authenticate` function in `src/auth.ts` extracts `{ token, sub, orgId, scopes }` from the verified token and stores it in `ctx.session` for each tool handler.
+
+**Shared audience**: `AUTH0_AUDIENCE=https://api.nexuscrm.com` is the same as the microservices. The token issued to an AI agent passes through unchanged from the MCP server to the microservices via `callService()` in `src/serviceClient.ts` — no token exchange needed.
+
+Tool files in `src/tools/*.ts` are typed as `Tool<MCPSession, any>[]` because fastmcp's `addTools` requires all tools share a single `Params` generic; `any` keeps `args` accessible while keeping `ctx: Context<MCPSession>` properly typed.
 
 ### Database
 

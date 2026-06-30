@@ -1,8 +1,0 @@
-{
-  "/(dashboard)/opportunities/[id]/page": "app/(dashboard)/opportunities/[id]/page.js",
-  "/(dashboard)/activities/new/page": "app/(dashboard)/activities/new/page.js",
-  "/(dashboard)/activities/[id]/edit/page": "app/(dashboard)/activities/[id]/edit/page.js",
-  "/(dashboard)/activities/page": "app/(dashboard)/activities/page.js",
-  "/(dashboard)/contacts/page": "app/(dashboard)/contacts/page.js",
-  "/(dashboard)/opportunities/page": "app/(dashboard)/opportunities/page.js"
-}

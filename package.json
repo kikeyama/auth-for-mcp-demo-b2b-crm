@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n account,opportunity,contact,activity,user,frontend -c blue,green,yellow,magenta,red,cyan \"npm run dev --prefix services/account\" \"npm run dev --prefix services/opportunity\" \"npm run dev --prefix services/contact\" \"npm run dev --prefix services/activity\" \"npm run dev --prefix services/user\" \"npm run dev --prefix frontend\""
+    "dev": "concurrently -n account,opportunity,contact,activity,user,mcp,frontend -c blue,green,yellow,magenta,red,white,cyan \"npm run dev --prefix services/account\" \"npm run dev --prefix services/opportunity\" \"npm run dev --prefix services/contact\" \"npm run dev --prefix services/activity\" \"npm run dev --prefix services/user\" \"npm run dev --prefix services/mcp\" \"npm run dev --prefix frontend\""
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
