@@ -18,5 +18,6 @@ export const config = {
     opportunities: process.env.OPPORTUNITIES_SERVICE_URL ?? 'http://localhost:3002',
     contacts:      process.env.CONTACTS_SERVICE_URL      ?? 'http://localhost:3003',
     activities:    process.env.ACTIVITIES_SERVICE_URL    ?? 'http://localhost:3004',
+    users:         process.env.USERS_SERVICE_URL         ?? 'http://localhost:3005',
   },
 };

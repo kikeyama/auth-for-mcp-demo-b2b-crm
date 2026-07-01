@@ -5,6 +5,7 @@ import { accountTools } from './tools/accounts';
 import { opportunityTools } from './tools/opportunities';
 import { contactTools } from './tools/contacts';
 import { activityTools } from './tools/activities';
+import { userTools } from './tools/users';
 
 const server = new FastMCP<MCPSession>({
   name: 'NexusCRM MCP Server',
@@ -25,6 +26,7 @@ const server = new FastMCP<MCPSession>({
         'read:opportunities', 'create:opportunities', 'update:opportunities', 'delete:opportunities',
         'read:contacts',   'create:contacts',   'update:contacts',   'delete:contacts',
         'read:activities', 'create:activities', 'update:activities', 'delete:activities',
+        'read:users',
       ],
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +53,7 @@ server.addTools([
   ...opportunityTools,
   ...contactTools,
   ...activityTools,
+  ...userTools,
 ]);
 
 server.start({
