@@ -20,6 +20,7 @@ const server = new FastMCP<MCPSession>({
       authorizationServers: [`https://${config.auth0.domain}/`],
       jwksUri:              `https://${config.auth0.domain}/.well-known/jwks.json`,
       scopesSupported: [
+        'offline_access',
         'read:accounts',   'create:accounts',   'update:accounts',   'delete:accounts',
         'read:opportunities', 'create:opportunities', 'update:opportunities', 'delete:opportunities',
         'read:contacts',   'create:contacts',   'update:contacts',   'delete:contacts',

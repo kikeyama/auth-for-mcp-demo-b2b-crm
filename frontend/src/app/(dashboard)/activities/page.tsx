@@ -35,7 +35,9 @@ export default async function ActivitiesPage() {
               {activities.map((a: any) => (
                 <tr key={a.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3"><ActivityTypeBadge type={a.type} /></td>
-                  <td className="px-4 py-3 font-medium text-gray-900">{a.subject}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    <Link href={`/activities/${a.id}`} className="hover:text-brand-600 hover:underline">{a.subject}</Link>
+                  </td>
                   <td className="px-4 py-3 text-gray-600">{a.account_name ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {a.activity_date ? new Date(a.activity_date).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' }) : '—'}

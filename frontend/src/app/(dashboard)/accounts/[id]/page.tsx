@@ -134,7 +134,7 @@ export default async function AccountDetailPage({ params }: { params: { id: stri
           {activities && activities.length > 0 ? (
             <div className="space-y-2">
               {activities.map((a: any) => (
-                <div key={a.id} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-3 items-start">
+                <Link key={a.id} href={`/activities/${a.id}`} className="bg-white rounded-xl border border-gray-200 p-4 flex gap-3 items-start hover:bg-gray-50 transition-colors">
                   <ActivityTypeBadge type={a.type} />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 text-sm">{a.subject}</p>
@@ -143,7 +143,7 @@ export default async function AccountDetailPage({ params }: { params: { id: stri
                   <span className="text-xs text-gray-400 shrink-0">
                     {a.activity_date ? new Date(a.activity_date).toLocaleDateString('ja-JP') : ''}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
