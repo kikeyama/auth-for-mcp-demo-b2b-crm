@@ -9,7 +9,7 @@ const base = config.services.users;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const userTools: Tool<MCPSession, any>[] = [
   {
-    name: 'get_user',
+    name: 'get_current_user',
     description:
       'アクセストークンに紐づく、現在ログイン中のユーザー自身の情報を取得します。' +
       '「自分がオーナーの案件」のように自分自身で絞り込みたい場合は、まずこのツールでユーザーIDを取得し、' +
