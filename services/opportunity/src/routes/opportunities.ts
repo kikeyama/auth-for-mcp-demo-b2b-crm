@@ -111,7 +111,7 @@ router.get('/:id', requireReadOpportunities, async (req: Request, res: Response)
 /** POST /opportunities */
 router.post('/', requireCreateOpportunities, async (req: Request, res: Response): Promise<void> => {
   const { orgId, userId } = getTokenClaims(req);
-  const { name, account_id, stage, amount, expected_close_date, probability, description } = req.body;
+  const { name, account_id, stage, amount, expected_close_date, probability, owner_id, description } = req.body;
 
   if (!name?.trim()) { res.status(400).json({ error: 'name is required' }); return; }
   if (stage && !VALID_STAGES.includes(stage)) {
@@ -132,7 +132,7 @@ router.post('/', requireCreateOpportunities, async (req: Request, res: Response)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
       [createId(), orgId, account_id ?? null, name, stage ?? 'prospect', amount ?? null,
-       expected_close_date ?? null, probability ?? null, userId, description ?? null, userId],
+       expected_close_date ?? null, probability ?? null, owner_id ?? userId, description ?? null, userId],
     );
     const opp = rows[0];
 

@@ -32,12 +32,14 @@ CREATE TABLE accounts (
     country        TEXT,
     employee_count INTEGER,
     annual_revenue NUMERIC(15,2),
+    owner_id       TEXT         NOT NULL,
     created_by     TEXT         NOT NULL,
     created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_accounts_org_id ON accounts (org_id);
+CREATE INDEX idx_accounts_org_id   ON accounts (org_id);
+CREATE INDEX idx_accounts_owner_id ON accounts (owner_id);
 
 -- -------------------------------------------------------
 -- contacts（連絡先）

@@ -3,15 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Account } from '@/types';
+import { Account, User, userDisplayName } from '@/types';
 import { NumberInput } from '@/components/ui/NumberInput';
 
 interface Props {
   initial?: Partial<Account>;
   accountId?: string;
+  users?: User[];
 }
 
-export function AccountForm({ initial = {}, accountId }: Props) {
+export function AccountForm({ initial = {}, accountId, users }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -79,6 +80,16 @@ export function AccountForm({ initial = {}, accountId }: Props) {
           <label className="block text-sm font-medium text-gray-700 mb-1">住所</label>
           <input name="address" defaultValue={initial.address} className="input w-full" />
         </div>
+        {users && users.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">オーナー</label>
+            <select name="owner_id" defaultValue={initial.owner_id ?? ''} className="input w-full">
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{userDisplayName(u)}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
       <div className="flex gap-3 pt-2">
         <button type="submit" disabled={saving} className="btn-primary">

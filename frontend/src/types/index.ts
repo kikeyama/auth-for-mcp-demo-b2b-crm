@@ -30,6 +30,7 @@ export interface Account {
   country?: string;
   employee_count?: number;
   annual_revenue?: number;
+  owner_id: string;
   created_by: string;
   created_at: string;
   updated_at: string;

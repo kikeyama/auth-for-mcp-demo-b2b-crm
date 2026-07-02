@@ -1,11 +1,16 @@
 import { Header } from '@/components/layout/Header';
 import Link from 'next/link';
 import { serverGet } from '@/lib/serverFetch';
+import { User, userDisplayName } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AccountsPage() {
-  const accounts: any[] = await serverGet('accounts', '/accounts') ?? [];
+  const [accounts, users]: [any[], User[]] = await Promise.all([
+    serverGet('accounts', '/accounts').then(r => r ?? []),
+    serverGet('users', '/users').then(r => r ?? []),
+  ]);
+  const userMap = new Map(users.map((u) => [u.id, userDisplayName(u)]));
 
   return (
     <>
@@ -24,12 +29,13 @@ export default async function AccountsPage() {
                 <th className="px-4 py-3 text-left font-medium text-gray-600">都市</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">電話番号</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">従業員数</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">オーナー</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {accounts.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">データがありません</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">データがありません</td></tr>
               )}
               {accounts.map((a: any) => (
                 <tr key={a.id} className="hover:bg-gray-50">
@@ -40,6 +46,7 @@ export default async function AccountsPage() {
                   <td className="px-4 py-3 text-gray-600">{a.city ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{a.phone ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{a.employee_count != null ? a.employee_count.toLocaleString() : '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{userMap.get(a.owner_id) ?? '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <Link href={`/accounts/${a.id}/edit`} className="text-xs text-brand-600 hover:underline">編集</Link>
                   </td>

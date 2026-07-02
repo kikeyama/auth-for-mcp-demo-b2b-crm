@@ -96,7 +96,7 @@ All routes apply `router.use(checkJwt, requireOrg)` at the top.
 
 ### MCP server (`services/mcp`)
 
-Built with `fastmcp` ^4.3.2. Exposes 17 CRM tools (CRUD for accounts, opportunities, contacts, activities + `list_opportunity_history`) at `/mcp` (HTTP Streamable transport).
+Built with `fastmcp` ^4.3.2. Exposes 18 CRM tools (CRUD for accounts, opportunities, contacts, activities + `list_opportunity_history` + `get_current_user`) at `/mcp` (HTTP Streamable transport).
 
 Auth0's "Auth for MCP" feature is enabled via the `oauth` block in `src/index.ts`:
 - `/.well-known/oauth-protected-resource` — RFC 9728 metadata, served by fastmcp automatically
@@ -115,6 +115,8 @@ Auth0's "Auth for MCP" feature is enabled via the `oauth` block in `src/index.ts
 Token validation: `@auth0/auth0-api-js` (`ApiClient.verifyAccessToken` + `getToken`). The `authenticate` function in `src/auth.ts` extracts `{ token, sub, orgId, scopes }` from the verified token and stores it in `ctx.session` for each tool handler.
 
 **Shared audience**: `AUTH0_AUDIENCE=https://api.nexuscrm.com` is the same as the microservices. The token issued to an AI agent passes through unchanged from the MCP server to the microservices via `callService()` in `src/serviceClient.ts` — no token exchange needed.
+
+**Owner-matching pattern (`get_current_user`)**: `src/tools/users.ts` exposes `get_current_user`, which resolves the caller's own user record via `ctx.session.sub` → `GET /users/:sub` on the `users` service (requires the `read:users` scope, already in `scopesSupported`). It takes no parameters. This lets an AI agent answer requests like "私の案件一覧を取得して" (my opportunities) without a dedicated per-entity filter tool: the agent calls `get_current_user` first to get the user ID, then compares it against `owner_id`-style fields in the results of other list tools. This keeps the pattern reusable across any entity that gains an owner concept in the future, rather than baking owner-filtering into each list tool individually.
 
 Tool files in `src/tools/*.ts` are typed as `Tool<MCPSession, any>[]` because fastmcp's `addTools` requires all tools share a single `Params` generic; `any` keeps `args` accessible while keeping `ctx: Context<MCPSession>` properly typed.
 
@@ -147,3 +149,15 @@ The `users` table uses Auth0 `sub` as primary key. Schema in `database/init.sql`
 - **`NumberInput` component** (`components/ui/NumberInput.tsx`): dual-input pattern for currency fields — visible `type="text"` with comma formatting, hidden `type="hidden"` with raw value for FormData
 - **Tailwind classes**: `btn-primary`, `btn-secondary`, `btn-danger`, `input` are custom utility classes defined in `globals.css`
 - **Post-mutation navigation**: always call `router.push(destination)` first, then `router.refresh()`. Reversing the order refreshes the current (pre-navigation) route's cache instead of the destination's, leaving the destination page stale.
+
+# Compact instructions
+
+When compacting (summarizing) the conversation, follow these guidelines:
+
+- Do not retain full contents of source code files. Keep only file paths and a summary of the changes.
+- Prioritize retaining recent work (diffs, current task, next steps).
+- For past resolved bugs or discussions, keep only the conclusion and omit the details.
+
+## Avoid large file reads
+
+Do not read generated/lock files in full (e.g. `package-lock.json`, `*.tsbuildinfo`). If you need to check a specific dependency or entry, use `grep`/`Bash` to extract only the relevant lines instead of the `Read` tool on the whole file.

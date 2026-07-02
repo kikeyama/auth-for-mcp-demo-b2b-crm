@@ -3,18 +3,21 @@ import { StageBadge, ActivityTypeBadge } from '@/components/ui/Badge';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { serverGet } from '@/lib/serverFetch';
+import { User, userDisplayName } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AccountDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
 
-  const [account, opportunities, contacts, activities] = await Promise.all([
+  const [account, opportunities, contacts, activities, users] = await Promise.all([
     serverGet('accounts', `/accounts/${id}`),
     serverGet('opportunities', `/opportunities?account_id=${id}`),
     serverGet('contacts', `/contacts?account_id=${id}`),
     serverGet('activities', `/activities?account_id=${id}`),
+    serverGet('users', '/users'),
   ]);
+  const userMap = new Map<string, string>((users ?? []).map((u: User) => [u.id, userDisplayName(u)]));
 
   if (!account) notFound();
 
@@ -38,6 +41,7 @@ export default async function AccountDetailPage({ params }: { params: { id: stri
               ['従業員数', account.employee_count != null ? `${account.employee_count.toLocaleString()} 人` : null],
               ['年商', account.annual_revenue != null ? `¥${Number(account.annual_revenue).toLocaleString()}` : null],
               ['住所', account.address],
+              ['オーナー', userMap.get(account.owner_id) ?? account.owner_id],
             ].map(([label, value]) => value ? (
               <div key={label as string}>
                 <dt className="text-gray-500">{label}</dt>

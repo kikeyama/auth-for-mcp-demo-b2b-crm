@@ -50,19 +50,19 @@ router.get('/:id', requireReadAccounts, async (req: Request, res: Response): Pro
 /** POST /accounts */
 router.post('/', requireCreateAccounts, async (req: Request, res: Response): Promise<void> => {
   const { orgId, userId } = getTokenClaims(req);
-  const { name, industry, website, phone, address, city, country, employee_count, annual_revenue } = req.body;
+  const { name, industry, website, phone, address, city, country, employee_count, annual_revenue, owner_id } = req.body;
 
   if (!name?.trim()) { res.status(400).json({ error: 'name is required' }); return; }
 
   try {
     const { rows } = await db.query(
       `INSERT INTO accounts
-         (id, org_id, name, industry, website, phone, address, city, country, employee_count, annual_revenue, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         (id, org_id, name, industry, website, phone, address, city, country, employee_count, annual_revenue, owner_id, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [createId(), orgId, name, industry ?? null, website ?? null, phone ?? null,
        address ?? null, city ?? null, country ?? null,
-       employee_count ?? null, annual_revenue ?? null, userId],
+       employee_count ?? null, annual_revenue ?? null, owner_id ?? userId, userId],
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -74,7 +74,7 @@ router.post('/', requireCreateAccounts, async (req: Request, res: Response): Pro
 /** PATCH /accounts/:id — 部分更新 */
 router.patch('/:id', requireUpdateAccounts, async (req: Request, res: Response): Promise<void> => {
   const { orgId } = getTokenClaims(req);
-  const fields = ['name', 'industry', 'website', 'phone', 'address', 'city', 'country', 'employee_count', 'annual_revenue'];
+  const fields = ['name', 'industry', 'website', 'phone', 'address', 'city', 'country', 'employee_count', 'annual_revenue', 'owner_id'];
   const updates: string[] = [];
   const values: unknown[] = [];
 
