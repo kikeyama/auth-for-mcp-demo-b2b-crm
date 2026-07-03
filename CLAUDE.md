@@ -136,6 +136,10 @@ Token validation: `@auth0/auth0-api-js` (`ApiClient.verifyAccessToken` + `getTok
 
 Tool files in `src/tools/*.ts` are typed as `Tool<MCPSession, any>[]` because fastmcp's `addTools` requires all tools share a single `Params` generic; `any` keeps `args` accessible while keeping `ctx: Context<MCPSession>` properly typed.
 
+### User ID strategy
+
+Auth0 `sub` (`auth0|xxxxx`) is used as the primary key of the `users` table and as the value stored in `owner_id` / `created_by` columns. An app-specific UUID was considered but rejected: this project uses Auth0 Organizations with a single Connection, so `sub` is stable and never changes. See `docs/adr-user-id-strategy.md` for the full rationale and the conditions under which this decision should be revisited.
+
 ### Database
 
 Single PostgreSQL instance shared by all four microservices. Schema in `database/init.sql`. The `activity_contacts` junction table enables many-to-many between activities and contacts.
