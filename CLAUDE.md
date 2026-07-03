@@ -57,6 +57,22 @@ The `services/mcp` service uses `AUTH0_DOMAIN` (no scheme, same as frontend) wit
 | mcp | 3006 | MCP server for AI agents |
 | PostgreSQL | 5432 | Single shared DB |
 
+### Health probe endpoints
+
+All services expose Kubernetes-style probes (no auth required):
+
+| Path | Liveness | Readiness |
+|---|---|---|
+| Microservices (Express) | `GET /healthz/live` → 200 | `GET /healthz/ready` → 200 / 503 (DB ping) |
+| MCP (fastmcp/Hono) | `GET /healthz/live` → 200 | `GET /healthz/ready` → 200 (static) |
+| Frontend (Next.js) | `GET /api/healthz/live` → 200 | `GET /api/healthz/ready` → 200 (static) |
+
+**Adding custom routes to the MCP server**: `server.getApp()` returns the underlying Hono app instance after `server.start()`. Use it to register routes that fastmcp doesn't expose natively (e.g. health probes):
+```ts
+const honoApp = server.getApp();
+honoApp.get('/healthz/live', (c) => c.json({ status: 'ok' }));
+```
+
 ### Two data-fetch paths in the frontend
 
 **Server Components → microservices directly** via `src/lib/serverFetch.ts`:

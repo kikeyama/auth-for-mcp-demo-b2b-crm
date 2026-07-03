@@ -65,6 +65,10 @@ server.start({
   },
 });
 
+const honoApp = server.getApp();
+honoApp.get('/healthz/live', (c) => c.json({ status: 'ok' }));
+honoApp.get('/healthz/ready', (c) => c.json({ status: 'ok' }));
+
 console.log(`NexusCRM MCP Server running on port ${config.port}`);
 console.log(`  MCP endpoint:                   ${config.mcpServerUrl}/mcp`);
 console.log(`  OAuth protected resource:       ${config.mcpServerUrl}/.well-known/oauth-protected-resource`);
