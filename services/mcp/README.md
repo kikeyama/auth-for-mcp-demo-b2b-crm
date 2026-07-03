@@ -32,6 +32,8 @@ MCP サーバーとマイクロサービスは `AUTH0_AUDIENCE=https://api.nexus
 | `POST /mcp` | MCP Streamable HTTP トランスポート（ツール呼び出し） |
 | `GET /.well-known/oauth-protected-resource` | RFC 9728 — AI クライアントが認可サーバーを発見するエントリポイント |
 | `GET /.well-known/oauth-authorization-server` | OAuth 2.0 AS メタデータ — Auth0 のエンドポイント情報を返す |
+| `GET /healthz/live` | Liveness probe — 常に 200 を返す |
+| `GET /healthz/ready` | Readiness probe — 常に 200 を返す |
 
 ---
 
@@ -56,6 +58,7 @@ MCP サーバーとマイクロサービスは `AUTH0_AUDIENCE=https://api.nexus
 | `get_activity` | 活動履歴詳細 | `read:activities` |
 | `create_activity` | 活動履歴記録 | `create:activities` |
 | `update_activity` | 活動履歴更新 | `update:activities` |
+| `get_current_user` | ログイン中のユーザー自身の情報を取得（owner_id 照合に使用） | `read:users` |
 
 スコープの適用は各マイクロサービスの `express-oauth2-jwt-bearer` 側で行われます。MCP サーバー自体はスコープ検証を行わず、受け取ったトークンをそのまま転送します。
 
@@ -111,6 +114,7 @@ read:accounts       create:accounts     update:accounts     delete:accounts
 read:opportunities  create:opportunities update:opportunities delete:opportunities
 read:contacts       create:contacts     update:contacts     delete:contacts
 read:activities     create:activities   update:activities   delete:activities
+read:users
 ```
 
 ### 3. MCP クライアント用 Application の登録
