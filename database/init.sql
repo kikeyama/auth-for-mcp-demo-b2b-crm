@@ -1,7 +1,7 @@
 -- -------------------------------------------------------
 -- users（ログインユーザー）
 -- -------------------------------------------------------
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id              TEXT         PRIMARY KEY,  -- Auth0 sub (e.g., auth0|abc123)
     org_id          TEXT         NOT NULL,
     name            TEXT,
@@ -15,12 +15,12 @@ CREATE TABLE users (
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_org_id ON users (org_id);
+CREATE INDEX IF NOT EXISTS idx_users_org_id ON users (org_id);
 
 -- -------------------------------------------------------
 -- accounts（顧客企業）
 -- -------------------------------------------------------
-CREATE TABLE accounts (
+CREATE TABLE IF NOT EXISTS accounts (
     id             TEXT         PRIMARY KEY,
     org_id         TEXT         NOT NULL,
     name           TEXT         NOT NULL,
@@ -38,13 +38,13 @@ CREATE TABLE accounts (
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_accounts_org_id   ON accounts (org_id);
-CREATE INDEX idx_accounts_owner_id ON accounts (owner_id);
+CREATE INDEX IF NOT EXISTS idx_accounts_org_id   ON accounts (org_id);
+CREATE INDEX IF NOT EXISTS idx_accounts_owner_id ON accounts (owner_id);
 
 -- -------------------------------------------------------
 -- contacts（連絡先）
 -- -------------------------------------------------------
-CREATE TABLE contacts (
+CREATE TABLE IF NOT EXISTS contacts (
     id         TEXT         PRIMARY KEY,
     org_id     TEXT         NOT NULL,
     account_id TEXT         REFERENCES accounts (id) ON DELETE SET NULL,
@@ -59,13 +59,13 @@ CREATE TABLE contacts (
     updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_contacts_org_id     ON contacts (org_id);
-CREATE INDEX idx_contacts_account_id ON contacts (account_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_org_id     ON contacts (org_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_account_id ON contacts (account_id);
 
 -- -------------------------------------------------------
 -- opportunities（案件）
 -- -------------------------------------------------------
-CREATE TABLE opportunities (
+CREATE TABLE IF NOT EXISTS opportunities (
     id                  TEXT         PRIMARY KEY,
     org_id              TEXT         NOT NULL,
     account_id          TEXT         REFERENCES accounts (id) ON DELETE SET NULL,
@@ -81,11 +81,11 @@ CREATE TABLE opportunities (
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_opportunities_org_id     ON opportunities (org_id);
-CREATE INDEX idx_opportunities_account_id ON opportunities (account_id);
-CREATE INDEX idx_opportunities_owner_id   ON opportunities (owner_id);
+CREATE INDEX IF NOT EXISTS idx_opportunities_org_id     ON opportunities (org_id);
+CREATE INDEX IF NOT EXISTS idx_opportunities_account_id ON opportunities (account_id);
+CREATE INDEX IF NOT EXISTS idx_opportunities_owner_id   ON opportunities (owner_id);
 
-CREATE TABLE opportunity_history (
+CREATE TABLE IF NOT EXISTS opportunity_history (
     id             TEXT        PRIMARY KEY,
     opportunity_id TEXT        NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
     org_id         TEXT        NOT NULL,
@@ -96,13 +96,13 @@ CREATE TABLE opportunity_history (
     old_value      TEXT,
     new_value      TEXT
 );
-CREATE INDEX idx_opportunity_history_opportunity_id ON opportunity_history (opportunity_id);
-CREATE INDEX idx_opportunity_history_org_id         ON opportunity_history (org_id);
+CREATE INDEX IF NOT EXISTS idx_opportunity_history_opportunity_id ON opportunity_history (opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_opportunity_history_org_id         ON opportunity_history (org_id);
 
 -- -------------------------------------------------------
 -- activities（活動履歴）
 -- -------------------------------------------------------
-CREATE TABLE activities (
+CREATE TABLE IF NOT EXISTS activities (
     id             TEXT         PRIMARY KEY,
     org_id         TEXT         NOT NULL,
     account_id     TEXT         REFERENCES accounts      (id) ON DELETE CASCADE,
@@ -117,18 +117,18 @@ CREATE TABLE activities (
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_activities_org_id        ON activities (org_id);
-CREATE INDEX idx_activities_account_id    ON activities (account_id);
-CREATE INDEX idx_activities_opportunity_id ON activities (opportunity_id);
-CREATE INDEX idx_activities_contact_id    ON activities (contact_id);
+CREATE INDEX IF NOT EXISTS idx_activities_org_id         ON activities (org_id);
+CREATE INDEX IF NOT EXISTS idx_activities_account_id     ON activities (account_id);
+CREATE INDEX IF NOT EXISTS idx_activities_opportunity_id ON activities (opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_activities_contact_id     ON activities (contact_id);
 
-CREATE TABLE activity_contacts (
+CREATE TABLE IF NOT EXISTS activity_contacts (
     activity_id TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
     contact_id  TEXT NOT NULL REFERENCES contacts(id)   ON DELETE CASCADE,
     PRIMARY KEY (activity_id, contact_id)
 );
-CREATE INDEX idx_activity_contacts_activity_id ON activity_contacts (activity_id);
-CREATE INDEX idx_activity_contacts_contact_id  ON activity_contacts (contact_id);
+CREATE INDEX IF NOT EXISTS idx_activity_contacts_activity_id ON activity_contacts (activity_id);
+CREATE INDEX IF NOT EXISTS idx_activity_contacts_contact_id  ON activity_contacts (contact_id);
 
 -- -------------------------------------------------------
 -- updated_at 自動更新トリガー
@@ -141,8 +141,8 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER trg_users_updated_at         BEFORE UPDATE ON users         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_accounts_updated_at      BEFORE UPDATE ON accounts      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_contacts_updated_at      BEFORE UPDATE ON contacts      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_opportunities_updated_at BEFORE UPDATE ON opportunities FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER trg_activities_updated_at    BEFORE UPDATE ON activities    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE OR REPLACE TRIGGER trg_users_updated_at         BEFORE UPDATE ON users         FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE OR REPLACE TRIGGER trg_accounts_updated_at      BEFORE UPDATE ON accounts      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE OR REPLACE TRIGGER trg_contacts_updated_at      BEFORE UPDATE ON contacts      FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE OR REPLACE TRIGGER trg_opportunities_updated_at BEFORE UPDATE ON opportunities FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE OR REPLACE TRIGGER trg_activities_updated_at    BEFORE UPDATE ON activities    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
