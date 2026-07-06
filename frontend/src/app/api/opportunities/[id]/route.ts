@@ -1,12 +1,15 @@
 import { NextRequest } from 'next/server';
 import { proxyToService } from '@/lib/serviceProxy';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  return proxyToService(req, 'opportunities', `/opportunities/${params.id}`);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyToService(req, 'opportunities', `/opportunities/${id}`);
 }
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  return proxyToService(req, 'opportunities', `/opportunities/${params.id}`);
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyToService(req, 'opportunities', `/opportunities/${id}`);
 }
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  return proxyToService(req, 'opportunities', `/opportunities/${params.id}`);
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyToService(req, 'opportunities', `/opportunities/${id}`);
 }

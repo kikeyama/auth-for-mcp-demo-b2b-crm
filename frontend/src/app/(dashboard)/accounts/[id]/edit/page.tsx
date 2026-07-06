@@ -5,8 +5,8 @@ import { serverGet } from '@/lib/serverFetch';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EditAccountPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function EditAccountPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const [account, users] = await Promise.all([
     serverGet('accounts', `/accounts/${id}`),
     serverGet('users', '/users'),

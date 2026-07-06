@@ -7,8 +7,8 @@ import { ACTIVITY_TYPES } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ActivityDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function ActivityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   const activity = await serverGet('activities', `/activities/${id}`);
   if (!activity) notFound();

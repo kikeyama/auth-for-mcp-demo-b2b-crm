@@ -7,8 +7,8 @@ import { User, userDisplayName } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AccountDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   const [account, opportunities, contacts, activities, users] = await Promise.all([
     serverGet('accounts', `/accounts/${id}`),

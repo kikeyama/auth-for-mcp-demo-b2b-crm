@@ -27,8 +27,8 @@ function formatHistoryValue(fieldName: string, value: string | null, accountName
   return value;
 }
 
-export default async function OpportunityDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function OpportunityDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
   const [opportunity, activities, history, users] = await Promise.all([
     serverGet('opportunities', `/opportunities/${id}`),

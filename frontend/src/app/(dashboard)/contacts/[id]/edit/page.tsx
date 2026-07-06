@@ -5,8 +5,8 @@ import { serverGet } from '@/lib/serverFetch';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EditContactPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function EditContactPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const [contact, accounts] = await Promise.all([
     serverGet('contacts', `/contacts/${id}`),
     serverGet('accounts', '/accounts'),

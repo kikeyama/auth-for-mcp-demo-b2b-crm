@@ -7,9 +7,9 @@ export const dynamic = 'force-dynamic';
 export default async function NewActivityPage({
   searchParams,
 }: {
-  searchParams: { account_id?: string; opportunity_id?: string; contact_id?: string };
+  searchParams: Promise<{ account_id?: string; opportunity_id?: string; contact_id?: string }>;
 }) {
-  const sp = searchParams;
+  const sp = await searchParams;
   const [accounts, opportunities, contacts] = await Promise.all([
     serverGet('accounts', '/accounts'),
     serverGet('opportunities', '/opportunities'),

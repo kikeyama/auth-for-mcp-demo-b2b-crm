@@ -4,8 +4,8 @@ import { serverGet } from '@/lib/serverFetch';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewOpportunityPage({ searchParams }: { searchParams: { account_id?: string } }) {
-  const { account_id } = searchParams;
+export default async function NewOpportunityPage({ searchParams }: { searchParams: Promise<{ account_id?: string }> }) {
+  const { account_id } = await searchParams;
   const [accounts, users] = await Promise.all([
     serverGet('accounts', '/accounts'),
     serverGet('users', '/users'),

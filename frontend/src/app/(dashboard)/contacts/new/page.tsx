@@ -4,8 +4,8 @@ import { serverGet } from '@/lib/serverFetch';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewContactPage({ searchParams }: { searchParams: { account_id?: string } }) {
-  const { account_id } = searchParams;
+export default async function NewContactPage({ searchParams }: { searchParams: Promise<{ account_id?: string }> }) {
+  const { account_id } = await searchParams;
   const accounts = await serverGet('accounts', '/accounts') ?? [];
 
   return (
