@@ -46,7 +46,7 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
               <div>
                 <dt className="text-gray-500">活動日時</dt>
                 <dd className="font-medium text-gray-800 mt-0.5">
-                  {new Date(activity.activity_date).toLocaleString('ja-JP')}
+                  {new Date(activity.activity_date).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' })}
                 </dd>
               </div>
             )}

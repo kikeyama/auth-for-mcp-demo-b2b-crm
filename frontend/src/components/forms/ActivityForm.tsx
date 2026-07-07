@@ -51,6 +51,9 @@ export function ActivityForm({ initial = {}, activityId, returnOpportunityId, ac
     const fd = new FormData(e.currentTarget);
     const body: Record<string, unknown> = {};
     fd.forEach((v, k) => { if (v !== '') body[k] = v; });
+    if (typeof body.activity_date === 'string') {
+      body.activity_date = new Date(body.activity_date).toISOString();
+    }
     body.contact_ids = contactIds;
     try {
       if (activityId) {
