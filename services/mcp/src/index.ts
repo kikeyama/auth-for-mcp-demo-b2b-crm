@@ -59,6 +59,7 @@ server.addTools([
 server.start({
   transportType: 'httpStream',
   httpStream: {
+    host:      '0.0.0.0',
     port:      config.port,
     endpoint:  '/mcp',
     stateless: false,
