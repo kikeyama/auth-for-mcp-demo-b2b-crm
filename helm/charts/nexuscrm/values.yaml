@@ -1,0 +1,198 @@
+# デフォルト値（services 配下で上書き可能）
+global:
+  replicas: 1
+  containerPort: 3000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  healthcheck:
+    live: /healthz/live
+    ready: /healthz/ready
+
+# DB初期化Job
+dbInit:
+  enabled: true
+  image: postgres:16-alpine
+  # デプロイ時に --set-file dbInit.sql=database/init.sql で注入する
+  sql: ""
+  # DATABASE_HOST / DATABASE_PASSWORD を含む Secret 名（Helm 管理外、事前に kubectl create secret で作成すること）
+  secretName: nexuscrm-db-secret
+
+# サービス定義（image は必須。他はglobalのデフォルトを上書きする場合のみ記載）
+# secretEnv → secretKeyRef マップ。Helm は Secret を作成しない。デプロイ前に kubectl create secret で作成すること。
+# env       → 非機密の env vars（Deployment の env.value として展開）
+#             secretEnv より後に定義するため、$(SECRET_VAR) 補完で secretEnv の値を参照できる。
+services:
+  account:
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:e2395c4
+    role: microservices
+    secretEnv:
+      DATABASE_HOST:
+        secretName: nexuscrm-db-secret
+        key: host
+      DATABASE_PASSWORD:
+        secretName: nexuscrm-db-secret
+        key: password
+      AUTH0_DOMAIN:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-domain
+      AUTH0_AUDIENCE:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-audience
+    env:
+      PORT: "3000"
+      ALLOWED_ORIGINS: "http://frontend:3000"
+      AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
+      DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+
+  opportunity:
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-opportunity:e2395c4
+    role: microservices
+    secretEnv:
+      DATABASE_HOST:
+        secretName: nexuscrm-db-secret
+        key: host
+      DATABASE_PASSWORD:
+        secretName: nexuscrm-db-secret
+        key: password
+      AUTH0_DOMAIN:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-domain
+      AUTH0_AUDIENCE:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-audience
+    env:
+      PORT: "3000"
+      ALLOWED_ORIGINS: "http://frontend:3000"
+      AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
+      DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+
+  contact:
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-contact:e2395c4
+    role: microservices
+    secretEnv:
+      DATABASE_HOST:
+        secretName: nexuscrm-db-secret
+        key: host
+      DATABASE_PASSWORD:
+        secretName: nexuscrm-db-secret
+        key: password
+      AUTH0_DOMAIN:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-domain
+      AUTH0_AUDIENCE:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-audience
+    env:
+      PORT: "3000"
+      ALLOWED_ORIGINS: "http://frontend:3000"
+      AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
+      DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+
+  activity:
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-activity:e2395c4
+    role: microservices
+    secretEnv:
+      DATABASE_HOST:
+        secretName: nexuscrm-db-secret
+        key: host
+      DATABASE_PASSWORD:
+        secretName: nexuscrm-db-secret
+        key: password
+      AUTH0_DOMAIN:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-domain
+      AUTH0_AUDIENCE:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-audience
+    env:
+      PORT: "3000"
+      ALLOWED_ORIGINS: "http://frontend:3000"
+      AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
+      DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+
+  user:
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-user:e2395c4
+    role: microservices
+    secretEnv:
+      DATABASE_HOST:
+        secretName: nexuscrm-db-secret
+        key: host
+      DATABASE_PASSWORD:
+        secretName: nexuscrm-db-secret
+        key: password
+      AUTH0_DOMAIN:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-domain
+      AUTH0_AUDIENCE:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-audience
+    env:
+      PORT: "3000"
+      ALLOWED_ORIGINS: "http://frontend:3000"
+      AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
+      DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+
+  frontend:
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:e2395c4
+    healthcheck:
+      live: /api/healthz/live
+      ready: /api/healthz/ready
+    ingress:
+      enabled: true
+      hostSecretKey: frontend-host   # nexuscrm-alb-secret のキー名
+    secretEnv:
+      AUTH0_DOMAIN:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-domain
+      AUTH0_CLIENT_ID:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-client-id
+      AUTH0_CLIENT_SECRET:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-client-secret
+      AUTH0_SECRET:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-secret
+      AUTH0_AUDIENCE:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-audience
+      FRONTEND_HOST:
+        secretName: nexuscrm-alb-secret
+        key: frontend-host
+    env:
+      APP_BASE_URL: "https://$(FRONTEND_HOST)"
+      AUTH0_SCOPE: "openid profile email offline_access read:accounts create:accounts update:accounts delete:accounts read:opportunities create:opportunities update:opportunities delete:opportunities read:contacts create:contacts update:contacts delete:contacts read:activities create:activities update:activities delete:activities read:users create:users update:users delete:users"
+      ACCOUNT_SERVICE_URL: "http://account:3000"
+      OPPORTUNITY_SERVICE_URL: "http://opportunity:3000"
+      CONTACT_SERVICE_URL: "http://contact:3000"
+      ACTIVITY_SERVICE_URL: "http://activity:3000"
+      USER_SERVICE_URL: "http://user:3000"
+
+  mcp:
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:0c7a4a4
+    ingress:
+      enabled: true
+      hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名
+    secretEnv:
+      AUTH0_DOMAIN:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-domain
+      AUTH0_AUDIENCE:
+        secretName: nexuscrm-auth0-secret
+        key: auth0-audience
+      MCP_HOST:
+        secretName: nexuscrm-alb-secret
+        key: mcp-host
+    env:
+      PORT: "3000"
+      MCP_SERVER_URL: "https://$(MCP_HOST)"
+      ACCOUNTS_SERVICE_URL: "http://account:3000"
+      OPPORTUNITIES_SERVICE_URL: "http://opportunity:3000"
+      CONTACTS_SERVICE_URL: "http://contact:3000"
+      ACTIVITIES_SERVICE_URL: "http://activity:3000"
+      USERS_SERVICE_URL: "http://user:3000"

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: nexuscrm
+description: NexusCRM 全サービス管理チャート
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

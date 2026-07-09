@@ -1,0 +1,34 @@
+{{- $albSecret := (lookup "v1" "Secret" $.Release.Namespace "nexuscrm-alb-secret") }}
+{{- $albData := get $albSecret "data" | default dict }}
+{{- range $name, $svc := .Values.services }}
+{{- if dig "ingress" "enabled" false $svc }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/subnets: {{ index $albData "subnets" | default "" | b64dec }}
+    alb.ingress.kubernetes.io/security-groups: {{ index $albData "security-groups" | default "" | b64dec }}
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: {{ index $albData "certificate-arn" | default "" | b64dec }}
+    alb.ingress.kubernetes.io/healthcheck-path: {{ dig "healthcheck" "live" $.Values.global.healthcheck.live $svc }}
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  ingressClassName: alb
+  rules:
+    - host: {{ index $albData (dig "ingress" "hostSecretKey" "" $svc) | default "" | b64dec }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $name }}
+                port:
+                  number: {{ dig "containerPort" $.Values.global.containerPort $svc }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,60 @@
+{{- range $name, $svc := .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  minReadySeconds: 5
+  progressDeadlineSeconds: 120
+  replicas: {{ dig "replicas" $.Values.global.replicas $svc }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+        {{- if $svc.role }}
+        role: {{ $svc.role }}
+        {{- end }}
+    spec:
+      containers:
+        - name: {{ $name }}
+          image: {{ $svc.image }}
+          imagePullPolicy: Always
+          resources:
+            limits:
+              cpu: {{ $.Values.global.resources.limits.cpu }}
+              memory: {{ $.Values.global.resources.limits.memory }}
+            requests:
+              cpu: {{ $.Values.global.resources.requests.cpu }}
+              memory: {{ $.Values.global.resources.requests.memory }}
+          {{- if or $svc.env $svc.secretEnv }}
+          env:
+            {{- range $key, $spec := $svc.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $spec.secretName }}
+                  key: {{ $spec.key }}
+            {{- end }}
+            {{- range $key, $value := $svc.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - containerPort: {{ dig "containerPort" $.Values.global.containerPort $svc }}
+          livenessProbe:
+            httpGet:
+              path: {{ dig "healthcheck" "live" $.Values.global.healthcheck.live $svc }}
+              port: {{ dig "containerPort" $.Values.global.containerPort $svc }}
+          readinessProbe:
+            httpGet:
+              path: {{ dig "healthcheck" "ready" $.Values.global.healthcheck.ready $svc }}
+              port: {{ dig "containerPort" $.Values.global.containerPort $svc }}
+{{- end }}
