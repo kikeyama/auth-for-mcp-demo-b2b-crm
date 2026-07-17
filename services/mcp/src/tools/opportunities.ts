@@ -19,7 +19,7 @@ export const opportunityTools: Tool<MCPSession, any>[] = [
     annotations: { readOnlyHint: true },
     execute: async (args, ctx) => {
       const qs = args.account_id ? `?account_id=${encodeURIComponent(args.account_id)}` : '';
-      const data = await callService(base, `/opportunities${qs}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/opportunities${qs}`, 'GET', ctx.session!, 'list_opportunities');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -31,7 +31,7 @@ export const opportunityTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: true },
     execute: async (args, ctx) => {
-      const data = await callService(base, `/opportunities/${args.id}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/opportunities/${args.id}`, 'GET', ctx.session!, 'get_opportunity');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -49,7 +49,7 @@ export const opportunityTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
-      const data = await callService(base, '/opportunities', 'POST', ctx.session!.token, args);
+      const data = await callService(base, '/opportunities', 'POST', ctx.session!, 'create_opportunity', args);
       return JSON.stringify(data, null, 2);
     },
   },
@@ -68,7 +68,7 @@ export const opportunityTools: Tool<MCPSession, any>[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
       const { id, ...body } = args;
-      const data = await callService(base, `/opportunities/${id}`, 'PATCH', ctx.session!.token, body);
+      const data = await callService(base, `/opportunities/${id}`, 'PATCH', ctx.session!, 'update_opportunity', body);
       return JSON.stringify(data, null, 2);
     },
   },
@@ -80,7 +80,7 @@ export const opportunityTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: true },
     execute: async (args, ctx) => {
-      const data = await callService(base, `/opportunities/${args.id}/history`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/opportunities/${args.id}/history`, 'GET', ctx.session!, 'list_opportunity_history');
       return JSON.stringify(data, null, 2);
     },
   },

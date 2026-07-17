@@ -1,12 +1,17 @@
 import { UserError } from 'fastmcp';
+import type { MCPSession } from './auth';
+import { getOboToken } from './oboToken';
 
 export async function callService(
   baseUrl: string,
   path: string,
   method: string,
-  token: string,
+  session: MCPSession,
+  toolName: string,
   body?: unknown,
 ): Promise<unknown> {
+  const token = await getOboToken(session, toolName);
+
   const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {

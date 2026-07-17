@@ -182,15 +182,26 @@ services:
       AUTH0_DOMAIN:
         secretName: nexuscrm-auth0-secret
         key: auth0-domain
-      AUTH0_AUDIENCE:
+      # OBO token exchange のターゲット audience (マイクロサービス側の API identifier)。
+      # MCP サーバー自身の audience (AUTH0_AUDIENCE、下記 env で定義) とは別物。
+      API_AUDIENCE:
         secretName: nexuscrm-auth0-secret
         key: auth0-audience
+      AUTH0_CLIENT_ID:
+        secretName: nexuscrm-auth0-secret
+        key: mcp-client-id
+      AUTH0_CLIENT_SECRET:
+        secretName: nexuscrm-auth0-secret
+        key: mcp-client-secret
       MCP_HOST:
         secretName: nexuscrm-alb-secret
         key: mcp-host
     env:
       PORT: "3000"
       MCP_SERVER_URL: "https://$(MCP_HOST)"
+      # MCP サーバー自身の audience。MCP 仕様 (RFC 8707) の要請で、
+      # mcp-remote が送る resource パラメータ = MCP サーバーの正規 URI と一致させる。
+      AUTH0_AUDIENCE: "https://$(MCP_HOST)/mcp"
       ACCOUNTS_SERVICE_URL: "http://account:3000"
       OPPORTUNITIES_SERVICE_URL: "http://opportunity:3000"
       CONTACTS_SERVICE_URL: "http://contact:3000"

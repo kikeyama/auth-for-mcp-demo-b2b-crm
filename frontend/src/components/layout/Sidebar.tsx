@@ -9,6 +9,7 @@ const navItems = [
   { href: '/opportunities', label: '案件',          icon: '💼' },
   { href: '/contacts',   label: '連絡先',           icon: '👤' },
   { href: '/activities', label: '活動履歴',         icon: '📋' },
+  { href: '/mcp-debug',  label: 'MCPトークン',      icon: '🔑' },
 ];
 
 export function Sidebar() {

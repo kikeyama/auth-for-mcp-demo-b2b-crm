@@ -25,7 +25,7 @@ export const activityTools: Tool<MCPSession, any>[] = [
       if (args.opportunity_id) params.set('opportunity_id', args.opportunity_id);
       if (args.contact_id)     params.set('contact_id',     args.contact_id);
       const qs = params.size > 0 ? `?${params.toString()}` : '';
-      const data = await callService(base, `/activities${qs}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/activities${qs}`, 'GET', ctx.session!, 'list_activities');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -37,7 +37,7 @@ export const activityTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: true },
     execute: async (args, ctx) => {
-      const data = await callService(base, `/activities/${args.id}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/activities/${args.id}`, 'GET', ctx.session!, 'get_activity');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -55,7 +55,7 @@ export const activityTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
-      const data = await callService(base, '/activities', 'POST', ctx.session!.token, args);
+      const data = await callService(base, '/activities', 'POST', ctx.session!, 'create_activity', args);
       return JSON.stringify(data, null, 2);
     },
   },
@@ -74,7 +74,7 @@ export const activityTools: Tool<MCPSession, any>[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
       const { id, ...body } = args;
-      const data = await callService(base, `/activities/${id}`, 'PATCH', ctx.session!.token, body);
+      const data = await callService(base, `/activities/${id}`, 'PATCH', ctx.session!, 'update_activity', body);
       return JSON.stringify(data, null, 2);
     },
   },

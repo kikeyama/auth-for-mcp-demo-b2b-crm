@@ -41,7 +41,9 @@ kubectl create secret generic nexuscrm-auth0-secret \
   --from-literal=auth0-audience="https://api.nexuscrm.com" \
   --from-literal=auth0-client-id="<frontend-client-id>" \
   --from-literal=auth0-client-secret="<frontend-client-secret>" \
-  --from-literal=auth0-secret="<32-char-random-string>"
+  --from-literal=auth0-secret="<32-char-random-string>" \
+  --from-literal=mcp-client-id="<mcp-native-app-client-id>" \
+  --from-literal=mcp-client-secret="<mcp-native-app-client-secret>"
 
 # ALB 設定（subnets・security-groups・certificate-arn・host）
 kubectl create secret generic nexuscrm-alb-secret \
@@ -65,10 +67,12 @@ kubectl create secret generic nexuscrm-alb-secret \
 | キー | 設定値 | 使用サービス |
 |---|---|---|
 | `auth0-domain` | `<tenant>.auth0.com`（スキームなし） | 全サービス |
-| `auth0-audience` | `https://api.nexuscrm.com`（Auth0 API identifier） | 全サービス |
+| `auth0-audience` | `https://api.nexuscrm.com`（マイクロサービス共通の Auth0 API identifier。mcp では OBO token exchange のターゲット audience として `API_AUDIENCE` に注入） | 全サービス |
 | `auth0-client-id` | frontend アプリの Client ID | frontend |
 | `auth0-client-secret` | frontend アプリの Client Secret | frontend |
 | `auth0-secret` | セッション暗号化用シークレット（32文字以上） `openssl rand -hex 32` で生成 | frontend |
+| `mcp-client-id` | MCP サーバー用 Native アプリの Client ID（OBO token exchange 用） | mcp |
+| `mcp-client-secret` | MCP サーバー用 Native アプリの Client Secret（OBO token exchange 用） | mcp |
 
 **nexuscrm-alb-secret**
 

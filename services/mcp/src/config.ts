@@ -10,8 +10,15 @@ export const config = {
   port: parseInt(process.env.PORT ?? '3006'),
   mcpServerUrl: process.env.MCP_SERVER_URL ?? 'http://localhost:3006',
   auth0: {
-    domain:   required('AUTH0_DOMAIN'),
-    audience: required('AUTH0_AUDIENCE'),
+    domain:       required('AUTH0_DOMAIN'),
+    // MCP サーバー自身の audience。MCP 仕様 (RFC 8707) の要請で、
+    // mcp-remote が送る resource パラメータ = MCP サーバーの正規 URI と一致させる。
+    audience:     required('AUTH0_AUDIENCE'),
+    // OBO token exchange のターゲット audience。マイクロサービス側の API identifier で、
+    // MCP サーバー自身の audience とは別の Auth0 API として登録する。
+    apiAudience:  required('API_AUDIENCE'),
+    clientId:     required('AUTH0_CLIENT_ID'),
+    clientSecret: required('AUTH0_CLIENT_SECRET'),
   },
   services: {
     accounts:      process.env.ACCOUNTS_SERVICE_URL      ?? 'http://localhost:3001',

@@ -17,7 +17,7 @@ export const contactTools: Tool<MCPSession, any>[] = [
     annotations: { readOnlyHint: true },
     execute: async (args, ctx) => {
       const qs = args.account_id ? `?account_id=${encodeURIComponent(args.account_id)}` : '';
-      const data = await callService(base, `/contacts${qs}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/contacts${qs}`, 'GET', ctx.session!, 'list_contacts');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -29,7 +29,7 @@ export const contactTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: true },
     execute: async (args, ctx) => {
-      const data = await callService(base, `/contacts/${args.id}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/contacts/${args.id}`, 'GET', ctx.session!, 'get_contact');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -48,7 +48,7 @@ export const contactTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
-      const data = await callService(base, '/contacts', 'POST', ctx.session!.token, args);
+      const data = await callService(base, '/contacts', 'POST', ctx.session!, 'create_contact', args);
       return JSON.stringify(data, null, 2);
     },
   },
@@ -68,7 +68,7 @@ export const contactTools: Tool<MCPSession, any>[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
       const { id, ...body } = args;
-      const data = await callService(base, `/contacts/${id}`, 'PATCH', ctx.session!.token, body);
+      const data = await callService(base, `/contacts/${id}`, 'PATCH', ctx.session!, 'update_contact', body);
       return JSON.stringify(data, null, 2);
     },
   },

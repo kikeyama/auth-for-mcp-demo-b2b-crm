@@ -10,18 +10,25 @@ Auth0 の **Auth for MCP** 機能を使って保護されたリモート MCP サ
 AI エージェント
     │  ① .well-known/oauth-protected-resource を取得
     │  ② Auth0 で認可コードフロー (PKCE + CIMD)
-    │  ③ Bearer トークンで /mcp へ接続
+    │  ③ Bearer トークンで /mcp へ接続（audience = MCP サーバー自身）
     ▼
 MCP サーバー (port 3006)
-    │  ④ @auth0/auth0-api-js でトークン検証
-    │  ⑤ 同じ Bearer トークンをそのままマイクロサービスへ転送
+    │  ④ @auth0/auth0-api-js でトークン検証（aud = MCP サーバー自身の audience）
+    │  ⑤ OBO token exchange で downstream API 向けの新しいトークンを取得
     ▼
 マイクロサービス (accounts/opportunities/contacts/activities)
 ```
 
-### 共有 Audience アーキテクチャ
+### 2 つの Audience（OBO Token Exchange）
 
-MCP サーバーとマイクロサービスは `AUTH0_AUDIENCE=https://api.nexuscrm.com` を**共有**します。AI エージェントに発行されたトークンは MCP サーバーからマイクロサービスへそのまま流れます（OBO トークン交換は不要）。
+MCP サーバーは [MCP 仕様](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#access-token-privilege-restriction) に従い、AI エージェントから受け取ったトークンをそのままマイクロサービスへ転送しません。代わりに Auth0 の [On-Behalf-Of Token Exchange](https://auth0.com/ai/docs/mcp/get-started/call-your-apis-on-users-behalf) を使い、MCP サーバー自身が **resource server**（受信トークンの検証）と **client**（downstream API 呼び出し）の二重の役割を持ちます。それぞれ別の Auth0 API・別の audience として登録する必要があります。
+
+| 環境変数 | Audience | 役割 |
+|---|---|---|
+| `AUTH0_AUDIENCE` | MCP サーバー自身の正規 URI（例: `http://localhost:3006/mcp`） | AI エージェントから受け取るトークンの `aud` 検証用。MCP 仕様 (RFC 8707) の要請で、mcp-remote が送る `resource` パラメータと一致させる必要がある |
+| `API_AUDIENCE` | マイクロサービス共通の API identifier（例: `https://api.nexuscrm.com`） | OBO token exchange のターゲット audience。交換後のトークンがマイクロサービスの `checkJwt` を通過できるようにする |
+
+交換後のトークンは元のトークンと同じ `sub` / `org_id` クレームを保持するため、マイクロサービス側はユーザー・組織のコンテキストを正しく認識できます。
 
 ---
 
@@ -60,7 +67,7 @@ MCP サーバーとマイクロサービスは `AUTH0_AUDIENCE=https://api.nexus
 | `update_activity` | 活動履歴更新 | `update:activities` |
 | `get_current_user` | ログイン中のユーザー自身の情報を取得（owner_id 照合に使用） | `read:users` |
 
-スコープの適用は各マイクロサービスの `express-oauth2-jwt-bearer` 側で行われます。MCP サーバー自体はスコープ検証を行わず、受け取ったトークンをそのまま転送します。
+スコープの適用は各マイクロサービスの `express-oauth2-jwt-bearer` 側で行われます。MCP サーバー自体はスコープ検証を行いませんが、OBO token exchange のリクエストには受信トークンのスコープをそのまま渡すため、ユーザーが同意したスコープの範囲内で downstream トークンが発行されます。
 
 ---
 
@@ -96,9 +103,13 @@ curl https://YOUR_TENANT.auth0.com/.well-known/oauth-authorization-server \
 # → true
 ```
 
-### 2. API の確認（既存の API を流用）
+### 2. API の登録（MCP サーバー自身と downstream で 2 つ）
 
-既存の `https://api.nexuscrm.com` API をそのまま使います（マイクロサービスと共有）。
+OBO Token Exchange のため、MCP サーバー自身とマイクロサービスは**別々の Auth0 API** として登録します。
+
+#### 2a. downstream API（既存の API を流用）
+
+既存の `https://api.nexuscrm.com` API をそのまま使います（マイクロサービスと共有、`API_AUDIENCE` に設定）。
 
 Auth0 Dashboard → **Applications → APIs** → `NexusCRM API` を開き、以下を確認します。
 
@@ -116,6 +127,18 @@ read:contacts       create:contacts     update:contacts     delete:contacts
 read:activities     create:activities   update:activities   delete:activities
 read:users
 ```
+
+#### 2b. MCP サーバー自身の API（新規登録）
+
+Auth0 Dashboard → **Applications → APIs → Create API** で新規作成します（`AUTH0_AUDIENCE` に設定）。
+
+| 項目 | 値 |
+|---|---|
+| Name | NexusCRM MCP Server |
+| Identifier | `http://localhost:3006/mcp`（MCP サーバーの正規 URI。本番では `https://<mcp-host>/mcp`） |
+| Signing Algorithm | RS256 |
+
+MCP 仕様 (RFC 8707) の要請で、mcp-remote が送る `resource` パラメータと Identifier を一致させる必要があります。**Permissions タブ**には downstream API と同じスコープ一覧（`scopesSupported` として広告する分）を登録しておきます。
 
 ### 3. MCP クライアント用 Application の登録
 
@@ -136,13 +159,13 @@ Auth0 Dashboard → **Applications → Applications → Create Application**
 |---|---|
 | Allowed Callback URLs | `http://localhost:12739/oauth/callback` |
 
-**APIs タブ**で API（Audience）を有効化します（user-delegated アクセス）。
+**APIs タブ**で手順 2b の MCP サーバー API（Audience）を有効化します（user-delegated アクセス）。
 
 > **注意**: アプリケーションの **APIs タブ**で設定します。API の "Machine to Machine Applications" タブ（`client_credentials` フロー専用）ではありません。
 
 **Organizations タブ**で対象組織を割り当てます（手順 4 も参照）。
 
-Settings タブから **Client ID** を控えておきます。
+Settings タブから **Client ID** と **Client Secret** を控えておきます。このアプリは OBO Token Exchange の confidential client としても使うため、Client Secret も必要です（`AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` に設定）。
 
 #### Claude Code 用（CIMD）
 
@@ -179,7 +202,12 @@ PORT=3006
 MCP_SERVER_URL=http://localhost:3006
 
 AUTH0_DOMAIN=your-tenant.auth0.com          # スキームなし
-AUTH0_AUDIENCE=https://api.nexuscrm.com     # マイクロサービスと同じ値
+AUTH0_AUDIENCE=http://localhost:3006/mcp    # MCP サーバー自身の audience（手順 2b）
+API_AUDIENCE=https://api.nexuscrm.com       # downstream API の audience（手順 2a、マイクロサービスと共有）
+
+# OBO Token Exchange 用の confidential client 認証情報（手順 3 の Native アプリ）
+AUTH0_CLIENT_ID=your-mcp-client-id
+AUTH0_CLIENT_SECRET=your-mcp-client-secret
 
 ACCOUNTS_SERVICE_URL=http://localhost:3001
 OPPORTUNITIES_SERVICE_URL=http://localhost:3002
@@ -312,8 +340,9 @@ const server = new FastMCP<MCPSession>({
     authorizationServer: {
       issuer:                              'https://your-tenant.auth0.com/',
       // audience= を埋め込む: mcp-remote は audience パラメータを付けないため、
-      // ここに固定しないと Auth0 がオペーク トークンを発行してしまう
-      authorizationEndpoint:               'https://your-tenant.auth0.com/authorize?audience=https://api.nexuscrm.com',
+      // ここに固定しないと Auth0 がオペーク トークンを発行してしまう。
+      // 値は MCP サーバー自身の audience（downstream API の audience とは別物）。
+      authorizationEndpoint:               'https://your-tenant.auth0.com/authorize?audience=http://localhost:3006/mcp',
       tokenEndpoint:                       'https://your-tenant.auth0.com/oauth/token',
       responseTypesSupported:              ['code'],
       codeChallengeMethodsSupported:       ['S256'],    // PKCE 必須
@@ -345,10 +374,14 @@ WWW-Authenticate: Bearer resource_metadata="http://localhost:3006/.well-known/oa
 import { ApiClient, getToken } from '@auth0/auth0-api-js';
 import type http from 'http';
 
-// ApiClient はモジュールレベルで一度だけ初期化（JWKS をキャッシュ）
+// ApiClient はモジュールレベルで一度だけ初期化（JWKS をキャッシュ）。
+// audience は MCP サーバー自身のもの（受信トークンの aud 検証用）。
+// clientId/clientSecret は OBO token exchange (getTokenOnBehalfOf) が要求する confidential client 認証情報。
 const apiClient = new ApiClient({
-  domain:   'your-tenant.auth0.com',  // スキームなし
-  audience: 'https://api.nexuscrm.com',
+  domain:       'your-tenant.auth0.com',  // スキームなし
+  audience:     'http://localhost:3006/mcp',
+  clientId:     'your-mcp-client-id',
+  clientSecret: 'your-mcp-client-secret',
 });
 
 export type MCPSession = {
@@ -392,9 +425,9 @@ export const accountTools: Tool<MCPSession, any>[] = [
     name: 'get_account',
     parameters: z.object({ id: z.string() }),
     execute: async (args, ctx) => {
-      // ctx.session.token  → Bearer トークン（マイクロサービスへ転送）
-      // ctx.session.orgId  → org_id クレーム（テナント識別）
-      const data = await callService(base, `/accounts/${args.id}`, 'GET', ctx.session!.token);
+      // ctx.session       → MCPSession（callService 内で OBO exchange に使われる）
+      // ctx.session.orgId → org_id クレーム（テナント識別）
+      const data = await callService(base, `/accounts/${args.id}`, 'GET', ctx.session!);
       return JSON.stringify(data, null, 2);
     },
   },
@@ -403,15 +436,42 @@ export const accountTools: Tool<MCPSession, any>[] = [
 
 ---
 
-### Step 4 — トークンをマイクロサービスへパススルー（`src/serviceClient.ts`）
+### Step 4 — OBO Token Exchange で downstream トークンを取得（`src/oboToken.ts` / `src/serviceClient.ts`）
 
-MCP サーバーは受け取った Bearer トークンをそのままマイクロサービスへ転送します。OBO トークン交換は不要です（同一 Audience のため）。
+MCP サーバーは受け取った Bearer トークンをそのまま転送せず、`apiClient.getTokenOnBehalfOf()` で `API_AUDIENCE` 向けの新しいトークンに交換します。交換後のトークンは `sub` / `org_id` クレームを保持したまま audience だけが変わります。交換結果は `sub:orgId` をキーに LRU キャッシュし（TTL はトークンの `expiresAt - 30s`）、API 呼び出しごとに Auth0 へリクエストしないようにします。
 
 ```typescript
-headers: {
-  Authorization:  `Bearer ${token}`,  // 元のトークンをそのまま転送
-  'Content-Type': 'application/json',
-},
+// src/oboToken.ts
+export async function getOboToken(session: MCPSession): Promise<string> {
+  const key = `${session.sub}:${session.orgId}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const result = await apiClient.getTokenOnBehalfOf(session.token, {
+    audience: config.auth0.apiAudience,   // ← downstream API の audience（MCP 自身とは別）
+    scope:    session.scopes.join(' '),
+  });
+
+  const ttlMs = Math.max(0, (result.expiresAt - 30) * 1000 - Date.now());
+  cache.set(key, result.accessToken, { ttl: ttlMs });
+  return result.accessToken;
+}
+```
+
+```typescript
+// src/serviceClient.ts
+export async function callService(baseUrl, path, method, session: MCPSession, body?) {
+  const token = await getOboToken(session);   // ← 交換後のトークン
+  const res = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  // ...
+}
 ```
 
 ---

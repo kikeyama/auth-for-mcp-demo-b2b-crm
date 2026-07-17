@@ -17,7 +17,7 @@ export const userTools: Tool<MCPSession, any>[] = [
     parameters: z.object({}),
     annotations: { readOnlyHint: true },
     execute: async (_args, ctx) => {
-      const data = await callService(base, `/users/${ctx.session!.sub}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/users/${ctx.session!.sub}`, 'GET', ctx.session!, 'get_current_user');
       return JSON.stringify(data, null, 2);
     },
   },

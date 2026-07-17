@@ -14,7 +14,7 @@ export const accountTools: Tool<MCPSession, any>[] = [
     parameters: z.object({}),
     annotations: { readOnlyHint: true },
     execute: async (_args, ctx) => {
-      const data = await callService(base, '/accounts', 'GET', ctx.session!.token);
+      const data = await callService(base, '/accounts', 'GET', ctx.session!, 'list_accounts');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -26,7 +26,7 @@ export const accountTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: true },
     execute: async (args, ctx) => {
-      const data = await callService(base, `/accounts/${args.id}`, 'GET', ctx.session!.token);
+      const data = await callService(base, `/accounts/${args.id}`, 'GET', ctx.session!, 'get_account');
       return JSON.stringify(data, null, 2);
     },
   },
@@ -46,7 +46,7 @@ export const accountTools: Tool<MCPSession, any>[] = [
     }),
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
-      const data = await callService(base, '/accounts', 'POST', ctx.session!.token, args);
+      const data = await callService(base, '/accounts', 'POST', ctx.session!, 'create_account', args);
       return JSON.stringify(data, null, 2);
     },
   },
@@ -68,7 +68,7 @@ export const accountTools: Tool<MCPSession, any>[] = [
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, ctx) => {
       const { id, ...body } = args;
-      const data = await callService(base, `/accounts/${id}`, 'PATCH', ctx.session!.token, body);
+      const data = await callService(base, `/accounts/${id}`, 'PATCH', ctx.session!, 'update_account', body);
       return JSON.stringify(data, null, 2);
     },
   },

@@ -6,6 +6,7 @@ import { opportunityTools } from './tools/opportunities';
 import { contactTools } from './tools/contacts';
 import { activityTools } from './tools/activities';
 import { userTools } from './tools/users';
+import { getRecords, removeRecord } from './debug/store';
 
 const server = new FastMCP<MCPSession>({
   name: 'NexusCRM MCP Server',
@@ -69,6 +70,21 @@ server.start({
 const honoApp = server.getApp();
 honoApp.get('/healthz/live', (c) => c.json({ status: 'ok' }));
 honoApp.get('/healthz/ready', (c) => c.json({ status: 'ok' }));
+
+// デモ用トークンビューア: MCP トークンと OBO 交換後の API トークンをデコードして
+// 直近の履歴を返す。本番運用では ENABLE_TOKEN_DEBUG=false で無効化する。
+if (process.env.ENABLE_TOKEN_DEBUG !== 'false') {
+  honoApp.get('/debug/tokens', (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json({ records: getRecords() });
+  });
+  honoApp.delete('/debug/tokens/:id', (c) => {
+    const removed = removeRecord(c.req.param('id'));
+    if (!removed) return c.json({ error: 'Record not found' }, 404);
+    return c.body(null, 204);
+  });
+  console.log('Token debug viewer: enabled at /debug/tokens (ENABLE_TOKEN_DEBUG=false to disable)');
+}
 
 console.log(`NexusCRM MCP Server running on port ${config.port}`);
 console.log(`  MCP endpoint:                   ${config.mcpServerUrl}/mcp`);

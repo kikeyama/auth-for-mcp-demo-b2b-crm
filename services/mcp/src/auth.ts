@@ -2,9 +2,11 @@ import { ApiClient, getToken } from '@auth0/auth0-api-js';
 import type http from 'http';
 import { config } from './config';
 
-const apiClient = new ApiClient({
-  domain:   config.auth0.domain,
-  audience: config.auth0.audience,
+export const apiClient = new ApiClient({
+  domain:       config.auth0.domain,
+  audience:     config.auth0.audience,
+  clientId:     config.auth0.clientId,
+  clientSecret: config.auth0.clientSecret,
 });
 
 export type MCPSession = {
