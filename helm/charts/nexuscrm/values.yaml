@@ -42,7 +42,7 @@ services:
         key: auth0-domain
       AUTH0_AUDIENCE:
         secretName: nexuscrm-auth0-secret
-        key: auth0-audience
+        key: api-audience
     env:
       PORT: "3000"
       ALLOWED_ORIGINS: "http://frontend:3000"
@@ -64,7 +64,7 @@ services:
         key: auth0-domain
       AUTH0_AUDIENCE:
         secretName: nexuscrm-auth0-secret
-        key: auth0-audience
+        key: api-audience
     env:
       PORT: "3000"
       ALLOWED_ORIGINS: "http://frontend:3000"
@@ -86,7 +86,7 @@ services:
         key: auth0-domain
       AUTH0_AUDIENCE:
         secretName: nexuscrm-auth0-secret
-        key: auth0-audience
+        key: api-audience
     env:
       PORT: "3000"
       ALLOWED_ORIGINS: "http://frontend:3000"
@@ -108,7 +108,7 @@ services:
         key: auth0-domain
       AUTH0_AUDIENCE:
         secretName: nexuscrm-auth0-secret
-        key: auth0-audience
+        key: api-audience
     env:
       PORT: "3000"
       ALLOWED_ORIGINS: "http://frontend:3000"
@@ -130,7 +130,7 @@ services:
         key: auth0-domain
       AUTH0_AUDIENCE:
         secretName: nexuscrm-auth0-secret
-        key: auth0-audience
+        key: api-audience
     env:
       PORT: "3000"
       ALLOWED_ORIGINS: "http://frontend:3000"
@@ -138,7 +138,7 @@ services:
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
 
   frontend:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:e2395c4
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:9e1ee0f
     healthcheck:
       live: /api/healthz/live
       ready: /api/healthz/ready
@@ -151,16 +151,16 @@ services:
         key: auth0-domain
       AUTH0_CLIENT_ID:
         secretName: nexuscrm-auth0-secret
-        key: auth0-client-id
+        key: frontend-client-id
       AUTH0_CLIENT_SECRET:
         secretName: nexuscrm-auth0-secret
-        key: auth0-client-secret
+        key: frontend-client-secret
       AUTH0_SECRET:
         secretName: nexuscrm-auth0-secret
         key: auth0-secret
       AUTH0_AUDIENCE:
         secretName: nexuscrm-auth0-secret
-        key: auth0-audience
+        key: api-audience
       FRONTEND_HOST:
         secretName: nexuscrm-alb-secret
         key: frontend-host
@@ -174,7 +174,7 @@ services:
       USER_SERVICE_URL: "http://user:3000"
 
   mcp:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:0c7a4a4
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:73a95a5
     ingress:
       enabled: true
       hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名
@@ -186,7 +186,7 @@ services:
       # MCP サーバー自身の audience (AUTH0_AUDIENCE、下記 env で定義) とは別物。
       API_AUDIENCE:
         secretName: nexuscrm-auth0-secret
-        key: auth0-audience
+        key: api-audience
       AUTH0_CLIENT_ID:
         secretName: nexuscrm-auth0-secret
         key: mcp-client-id

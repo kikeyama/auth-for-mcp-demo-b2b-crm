@@ -38,9 +38,9 @@ kubectl create secret generic nexuscrm-db-secret \
 kubectl create secret generic nexuscrm-auth0-secret \
   --namespace nexuscrm \
   --from-literal=auth0-domain="<tenant>.auth0.com" \
-  --from-literal=auth0-audience="https://api.nexuscrm.com" \
-  --from-literal=auth0-client-id="<frontend-client-id>" \
-  --from-literal=auth0-client-secret="<frontend-client-secret>" \
+  --from-literal=api-audience="https://api.nexuscrm.com" \
+  --from-literal=frontend-client-id="<frontend-client-id>" \
+  --from-literal=frontend-client-secret="<frontend-client-secret>" \
   --from-literal=auth0-secret="<32-char-random-string>" \
   --from-literal=mcp-client-id="<mcp-native-app-client-id>" \
   --from-literal=mcp-client-secret="<mcp-native-app-client-secret>"
@@ -67,9 +67,9 @@ kubectl create secret generic nexuscrm-alb-secret \
 | キー | 設定値 | 使用サービス |
 |---|---|---|
 | `auth0-domain` | `<tenant>.auth0.com`（スキームなし） | 全サービス |
-| `auth0-audience` | `https://api.nexuscrm.com`（マイクロサービス共通の Auth0 API identifier。mcp では OBO token exchange のターゲット audience として `API_AUDIENCE` に注入） | 全サービス |
-| `auth0-client-id` | frontend アプリの Client ID | frontend |
-| `auth0-client-secret` | frontend アプリの Client Secret | frontend |
+| `api-audience` | `https://api.nexuscrm.com`（マイクロサービス共通の Auth0 API identifier。mcp では OBO token exchange のターゲット audience として `API_AUDIENCE` に注入） | 全サービス |
+| `frontend-client-id` | frontend アプリの Client ID | frontend |
+| `frontend-client-secret` | frontend アプリの Client Secret | frontend |
 | `auth0-secret` | セッション暗号化用シークレット（32文字以上） `openssl rand -hex 32` で生成 | frontend |
 | `mcp-client-id` | MCP サーバー用 Native アプリの Client ID（OBO token exchange 用） | mcp |
 | `mcp-client-secret` | MCP サーバー用 Native アプリの Client Secret（OBO token exchange 用） | mcp |
@@ -108,6 +108,24 @@ helm upgrade nexuscrm ./charts/nexuscrm \
   --namespace nexuscrm \
   --set-file dbInit.sql=../database/init.sql \
   --set services.account.image=222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:v1.2.3
+```
+
+### ⚠️ Docker イメージのビルド時は `--platform linux/amd64` を必須指定
+
+EKS ノードは `amd64` だが、Apple Silicon Mac（`arm64`）で `docker build` するとホストのアーキテクチャ向けにしかビルドされない。`--platform` を指定せずに push すると、ECR 上のマニフェストに `amd64` 用のイメージが存在せず、Pod は `ImagePullBackOff` → `no match for platform in manifest: not found` で起動に失敗する。
+
+```bash
+docker build --platform linux/amd64 --provenance=false \
+  -t 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-<service>:<tag> \
+  --push .
+```
+
+`--platform linux/amd64` を付けるとローカルの image store に読み込めない場合があるため、`--push` で直接 ECR に送るのが確実（`docker build` → `docker tag` → `docker push` の3ステップに分けない）。`--provenance=false` は任意だが、付けないと BuildKit が provenance attestation 用の manifest を自動生成し、ECR 上に「タグなしイメージ」が並んで見づらくなる（動作上の問題はない）。
+
+push 後、Pod が古いタグのまま `ImagePullBackOff` になっている場合は再pull を明示的に促す:
+
+```bash
+kubectl rollout restart deployment/<service> -n nexuscrm
 ```
 
 ### テンプレートの確認（dry-run）
