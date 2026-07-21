@@ -6,7 +6,7 @@ import { config } from '../config';
 
 const base = config.services.opportunities;
 
-const STAGES = ['prospecting', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'] as const;
+const STAGES = ['prospect', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const opportunityTools: Tool<MCPSession, any>[] = [
@@ -41,7 +41,7 @@ export const opportunityTools: Tool<MCPSession, any>[] = [
     parameters: z.object({
       name:            z.string().describe('案件名（必須）'),
       account_id:      z.string().describe('顧客企業ID（必須）'),
-      stage:           z.enum(STAGES).describe('フェーズ（必須）: prospecting / qualification / proposal / negotiation / closed_won / closed_lost'),
+      stage:           z.enum(STAGES).describe('フェーズ（必須）: prospect / qualification / proposal / negotiation / closed_won / closed_lost'),
       amount:          z.number().nonnegative().optional().describe('金額（円）'),
       close_date:      z.string().optional().describe('クローズ予定日 (YYYY-MM-DD)'),
       owner_id:        z.string().optional().describe('担当者のユーザーID'),
