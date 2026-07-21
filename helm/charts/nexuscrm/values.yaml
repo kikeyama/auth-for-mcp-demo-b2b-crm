@@ -178,6 +178,7 @@ services:
     ingress:
       enabled: true
       hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名
+      extraSecurityGroupsSecretKey: mcp-extra-security-groups  # nexuscrm-alb-secret のキー名（mcp のみに追加適用）
     secretEnv:
       AUTH0_DOMAIN:
         secretName: nexuscrm-auth0-secret

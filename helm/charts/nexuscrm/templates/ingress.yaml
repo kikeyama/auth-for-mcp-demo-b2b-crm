@@ -2,6 +2,15 @@
 {{- $albData := get $albSecret "data" | default dict }}
 {{- range $name, $svc := .Values.services }}
 {{- if dig "ingress" "enabled" false $svc }}
+{{- $baseSGs := index $albData "security-groups" | default "" | b64dec }}
+{{- $extraKey := dig "ingress" "extraSecurityGroupsSecretKey" "" $svc }}
+{{- $securityGroups := $baseSGs }}
+{{- if $extraKey }}
+{{- $extraSGs := index $albData $extraKey | default "" | b64dec }}
+{{- if $extraSGs }}
+{{- $securityGroups = printf "%s,%s" $baseSGs $extraSGs }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -12,7 +21,7 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/subnets: {{ index $albData "subnets" | default "" | b64dec }}
-    alb.ingress.kubernetes.io/security-groups: {{ index $albData "security-groups" | default "" | b64dec }}
+    alb.ingress.kubernetes.io/security-groups: {{ $securityGroups }}
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
     alb.ingress.kubernetes.io/certificate-arn: {{ index $albData "certificate-arn" | default "" | b64dec }}
     alb.ingress.kubernetes.io/healthcheck-path: {{ dig "healthcheck" "live" $.Values.global.healthcheck.live $svc }}

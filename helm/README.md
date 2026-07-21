@@ -52,7 +52,8 @@ kubectl create secret generic nexuscrm-alb-secret \
   --from-literal=security-groups="<sg-id-1>,<sg-id-2>" \
   --from-literal=certificate-arn="arn:aws:acm:<region>:<account>:certificate/<id>" \
   --from-literal=frontend-host="nexuscrm.example.com" \
-  --from-literal=mcp-host="nexuscrm-mcp.example.com"
+  --from-literal=mcp-host="nexuscrm-mcp.example.com" \
+  --from-literal=mcp-extra-security-groups="<claude-connector-sg-id>"
 ```
 
 **nexuscrm-db-secret**
@@ -83,6 +84,7 @@ kubectl create secret generic nexuscrm-alb-secret \
 | `certificate-arn` | ACM 証明書の ARN |
 | `frontend-host` | frontend の Ingress ホスト名 |
 | `mcp-host` | mcp の Ingress ホスト名 |
+| `mcp-extra-security-groups` | mcp の ALB にのみ追加適用するセキュリティグループ ID（カンマ区切り可）。`security-groups` と結合されて `alb.ingress.kubernetes.io/security-groups` に反映される。例: Claude Connector の Outbound IP レンジ（`160.79.104.0/21`）を許可する専用 SG |
 
 > `DATABASE_URL` は Secret に持たず、`$(DATABASE_HOST)` / `$(DATABASE_PASSWORD)` を K8s env 補完で組み合わせて Deployment 内で構築する。ユーザー名 `nexuscrm`・ポート `5432`・DB 名 `nexuscrm` は values.yaml の `env.DATABASE_URL` テンプレートに直接記載。
 
