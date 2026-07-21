@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { serverGet } from '@/lib/serverFetch';
 import { OpportunityCharts } from '@/components/charts/OpportunityCharts';
 import { User } from '@/types';
+import { Building2, Briefcase, Users, ClipboardList } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +15,10 @@ const quickActions = [
 ];
 
 const overviewCards = [
-  { label: '顧客企業',  href: '/accounts',      icon: '🏢' },
-  { label: '案件',      href: '/opportunities',  icon: '💼' },
-  { label: '連絡先',    href: '/contacts',       icon: '👤' },
-  { label: '活動履歴',  href: '/activities',     icon: '📋' },
+  { label: '顧客企業',  href: '/accounts',      icon: Building2 },
+  { label: '案件',      href: '/opportunities',  icon: Briefcase },
+  { label: '連絡先',    href: '/contacts',       icon: Users },
+  { label: '活動履歴',  href: '/activities',     icon: ClipboardList },
 ];
 
 export default async function DashboardPage() {
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
           {overviewCards.map((c) => (
             <Link key={c.href} href={c.href}
               className="border border-gray-200 rounded-xl bg-white p-5 flex flex-col gap-2 hover:shadow-md transition-shadow">
-              <span className="text-3xl">{c.icon}</span>
+              <c.icon className="w-7 h-7 text-brand-600" />
               <span className="font-semibold text-gray-700">{c.label}</span>
               <span className="text-xs text-brand-600 mt-auto">一覧を見る →</span>
             </Link>

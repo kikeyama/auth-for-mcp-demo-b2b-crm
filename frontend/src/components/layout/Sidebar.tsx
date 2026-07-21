@@ -2,20 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LayoutDashboard, Building2, Briefcase, Users, ClipboardList, KeyRound, type LucideIcon } from 'lucide-react';
 
-const navItems = [
-  { href: '/dashboard',  label: 'ダッシュボード', icon: '🏠' },
-  { href: '/accounts',   label: '顧客企業',        icon: '🏢' },
-  { href: '/opportunities', label: '案件',          icon: '💼' },
-  { href: '/contacts',   label: '連絡先',           icon: '👤' },
-  { href: '/activities', label: '活動履歴',         icon: '📋' },
+const navItems: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/dashboard',     label: 'ダッシュボード', icon: LayoutDashboard },
+  { href: '/accounts',      label: '顧客企業',       icon: Building2 },
+  { href: '/opportunities', label: '案件',            icon: Briefcase },
+  { href: '/contacts',      label: '連絡先',          icon: Users },
+  { href: '/activities',    label: '活動履歴',        icon: ClipboardList },
 ];
 
-const adminNavItems = [
-  { href: '/mcp-debug', label: 'MCPトークン', icon: '🔑' },
+const adminNavItems: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/mcp-debug', label: 'MCPトークン', icon: KeyRound },
 ];
 
-function NavLink({ href, label, icon, active }: { href: string; label: string; icon: string; active: boolean }) {
+function NavLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: LucideIcon; active: boolean }) {
   return (
     <Link
       href={href}
@@ -25,7 +26,7 @@ function NavLink({ href, label, icon, active }: { href: string; label: string; i
           : 'text-brand-100 hover:bg-brand-700 hover:text-white'
       }`}
     >
-      <span>{icon}</span>
+      <Icon className="w-4 h-4 flex-shrink-0" />
       {label}
     </Link>
   );
