@@ -16,9 +16,14 @@ export async function getOboToken(session: MCPSession, toolName: string): Promis
     return cached;
   }
 
+  // offline_access is valid on the incoming MCP client token (so mcp-remote can refresh
+  // its own session) but Auth0 rejects it on the OBO exchange request itself:
+  // "Refresh tokens (offline_access scope) are not supported for on-behalf-of token exchange".
+  const scope = session.scopes.filter((s) => s !== 'offline_access').join(' ');
+
   const result = await apiClient.getTokenOnBehalfOf(session.token, {
     audience: config.auth0.apiAudience,
-    scope: session.scopes.join(' '),
+    scope,
   });
 
   // expiresAt is seconds since epoch; subtract 30s buffer before caching
