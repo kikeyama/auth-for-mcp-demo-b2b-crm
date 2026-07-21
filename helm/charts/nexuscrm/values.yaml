@@ -175,7 +175,7 @@ services:
       MCP_SERVICE_URL: "http://mcp:3000"
 
   mcp:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:272920f
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:b002324
     ingress:
       enabled: true
       hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名
