@@ -48,7 +48,13 @@ app.post('/webhooks/auth0-logs', express.text({ type: '*/*', limit: '2mb' }), (r
   let stored = 0;
   for (const event of events) {
     if (!event || typeof event !== 'object') continue;
-    const e = event as Record<string, unknown>;
+    const wrapper = event as Record<string, unknown>;
+
+    // Auth0 Log Streams の実際のペイロードは { log_id, data: {...} } の形で
+    // イベント本体が data の下にラップされている（トップレベルには type 等は無い）。
+    const e = (wrapper.data && typeof wrapper.data === 'object')
+      ? wrapper.data as Record<string, unknown>
+      : wrapper;
 
     // Log Stream 側は type: "s" (Success Login) のみ送る設定だが、念のためここでも確認する。
     if (e.type !== 's') continue;

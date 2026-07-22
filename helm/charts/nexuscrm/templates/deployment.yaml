@@ -21,6 +21,9 @@ spec:
         {{- if $svc.role }}
         role: {{ $svc.role }}
         {{- end }}
+        {{- if $svc.public }}
+        public: "{{ $svc.public }}"
+        {{- end }}
     spec:
       containers:
         - name: {{ $name }}

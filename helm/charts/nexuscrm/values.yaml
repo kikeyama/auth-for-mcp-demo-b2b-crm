@@ -138,7 +138,7 @@ services:
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
 
   frontend:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:e5bbcd3
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:8f8b0a1
     healthcheck:
       live: /api/healthz/live
       ready: /api/healthz/ready
@@ -213,7 +213,9 @@ services:
 
   auth0logs:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0logs:latest
-    role: microservices        # 既存の microservices-sg-policy を再利用 (frontend/mcp からの inbound は既に許可済み)
+    role: microservices        # microservices-sg-policy（frontend/mcp からの inbound）を適用
+    public: true               # public-sg-policy（ALB からの inbound）も併用適用。1つの Pod に複数の SecurityGroupPolicy が一致する場合、
+                                # 各ポリシーの SG は加算される（本番検証済み。ドキュメントに明記は無いが実際の挙動）
     ingress:
       enabled: true
       hostSecretKey: auth0logs-host              # nexuscrm-alb-secret のキー名
