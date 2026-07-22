@@ -82,6 +82,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  auth0logs:
+    build:
+      context: ./services/auth0logs
+    ports:
+      - '3007:3007'
+    environment:
+      PORT: 3007
+      LOG_STREAM_TOKEN: ${LOG_STREAM_TOKEN}
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend

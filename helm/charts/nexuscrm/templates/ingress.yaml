@@ -4,12 +4,16 @@
 {{- if dig "ingress" "enabled" false $svc }}
 {{- $baseSGs := index $albData "security-groups" | default "" | b64dec }}
 {{- $extraKey := dig "ingress" "extraSecurityGroupsSecretKey" "" $svc }}
+{{- $overrideKey := dig "ingress" "securityGroupsSecretKey" "" $svc }}
 {{- $securityGroups := $baseSGs }}
 {{- if $extraKey }}
 {{- $extraSGs := index $albData $extraKey | default "" | b64dec }}
 {{- if $extraSGs }}
 {{- $securityGroups = printf "%s,%s" $baseSGs $extraSGs }}
 {{- end }}
+{{- end }}
+{{- if $overrideKey }}
+{{- $securityGroups = index $albData $overrideKey | default "" | b64dec }}
 {{- end }}
 ---
 apiVersion: networking.k8s.io/v1

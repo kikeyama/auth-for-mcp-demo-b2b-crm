@@ -53,16 +53,38 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function TokenPanel({ label, token, accentClass }: { label: string; token: DecodedToken; accentClass: string }) {
+function ClientIdBadge({ clientId }: { clientId: string }) {
+  if (clientId.startsWith('https://') || clientId.startsWith('http://')) {
+    return <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-sans font-semibold">CIMD</span>;
+  }
+  if (clientId.startsWith('tpc_')) {
+    return <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-sans font-semibold">DCR (3rd party)</span>;
+  }
+  return null;
+}
+
+function TokenPanel({ label, token, accentClass, showAzp }: { label: string; token: DecodedToken; accentClass: string; showAzp?: boolean }) {
   const payload = token.payload ?? {};
   const scope = typeof payload.scope === 'string' ? payload.scope : '';
   const aud = payload.aud;
   const audStr = Array.isArray(aud) ? aud.join(', ') : String(aud ?? '-');
+  const azp = typeof payload.azp === 'string' ? payload.azp : (typeof payload.client_id === 'string' ? payload.client_id : '');
 
   return (
     <div className="flex-1 rounded-xl border border-gray-200 bg-gray-50 p-4">
       <div className={`text-xs font-bold mb-3 ${accentClass}`}>{label}</div>
       <dl className="text-xs space-y-1.5 font-mono">
+        {showAzp && azp && (
+          <div className="flex gap-2 items-start">
+            <dt className="flex-shrink-0 text-gray-500">azp:</dt>
+            <dd className="break-all text-gray-900 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span>{azp}</span>
+                <ClientIdBadge clientId={azp} />
+              </div>
+            </dd>
+          </div>
+        )}
         <div className="flex gap-2">
           <dt className="flex-shrink-0 text-gray-500">aud:</dt>
           <dd className="break-all text-gray-900">{audStr}</dd>
@@ -203,7 +225,7 @@ export default function McpDebugPage() {
 
                 {!collapsed && (
                   <div className="flex items-stretch gap-3">
-                    <TokenPanel label="MCPトークン（MCP Client → MCP Server）" token={rec.mcpToken} accentClass="text-blue-600" />
+                    <TokenPanel label="MCPトークン（MCP Client → MCP Server）" token={rec.mcpToken} accentClass="text-blue-600" showAzp />
                     <div className="flex items-center justify-center flex-shrink-0 text-gray-400">→</div>
                     <TokenPanel label="APIトークン（OBO交換後 → microservices）" token={rec.apiToken} accentClass="text-green-600" />
                   </div>

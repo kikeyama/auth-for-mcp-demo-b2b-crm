@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Briefcase, Users, ClipboardList, KeyRound, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Building2, Briefcase, Users, ClipboardList, KeyRound, ShieldCheck, type LucideIcon } from 'lucide-react';
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/dashboard',     label: 'ダッシュボード', icon: LayoutDashboard },
@@ -13,7 +13,8 @@ const navItems: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const adminNavItems: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: '/mcp-debug', label: 'MCPトークン', icon: KeyRound },
+  { href: '/cimd-requests',  label: 'CIMD認証リクエスト', icon: ShieldCheck },
+  { href: '/mcp-debug',      label: 'MCPトークン',        icon: KeyRound },
 ];
 
 function NavLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: LucideIcon; active: boolean }) {

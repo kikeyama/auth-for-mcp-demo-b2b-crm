@@ -55,6 +55,7 @@ The `services/mcp` service uses `AUTH0_DOMAIN` (no scheme, same as frontend) wit
 | activity | 3004 | Activities CRUD |
 | user | 3005 | Users sync & CRUD |
 | mcp | 3006 | MCP server for AI agents |
+| auth0logs | 3007 | Auth0 Log Stream (Custom Webhook) receiver, demo-only |
 | PostgreSQL | 5432 | Single shared DB |
 
 ### Health probe endpoints
@@ -151,6 +152,20 @@ Token validation: `@auth0/auth0-api-js` (`ApiClient.verifyAccessToken` + `getTok
 **Owner-matching pattern (`get_current_user`)**: `src/tools/users.ts` exposes `get_current_user`, which resolves the caller's own user record via `ctx.session.sub` → `GET /users/:sub` on the `users` service (requires the `read:users` scope, already in `scopesSupported`). It takes no parameters. This lets an AI agent answer requests like "私の案件一覧を取得して" (my opportunities) or "私の担当顧客を取得して" (my accounts) without a dedicated per-entity filter tool: the agent calls `get_current_user` first to get the user ID, then compares it against the `owner_id` field in the results of list tools. Both `opportunities` and `accounts` have `owner_id`. This keeps the pattern reusable across any future entity that gains an owner concept, rather than baking owner-filtering into each list tool individually.
 
 Tool files in `src/tools/*.ts` are typed as `Tool<MCPSession, any>[]` because fastmcp's `addTools` requires all tools share a single `Params` generic; `any` keeps `args` accessible while keeping `ctx: Context<MCPSession>` properly typed.
+
+**CIMD visualization (`azp` claim + `auth0logs`)**: `decodeJwt()` in `src/debug/jwt.ts` already returns the full JWT payload, so no MCP-server change was needed to expose the `azp` claim — the frontend's `/mcp-debug` page (`TokenPanel` with `showAzp`) reads it directly from the existing `mcpToken.payload` data and classifies it (URL → CIMD, `tpc_` prefix → DCR/3rd-party). To also show Auth0's *own* authentication log for CIMD clients in real time, a **separate microservice** `services/auth0logs` (port 3007) receives Auth0 Log Streams (Custom Webhook) pushes at `POST /webhooks/auth0-logs` — deliberately not added to `services/mcp` itself, since the MCP server's role should stay scoped to being an MCP resource server/OBO client, not a generic webhook receiver. This is surfaced on its **own page**, `/cimd-requests` (not `/mcp-debug` — a deliberately separate screen, since CIMD authentication happens at connection time, decoupled from any particular tool call shown in the token viewer), via `frontend/src/app/api/auth0-logs/route.ts`. The Log Stream is configured (Auth0-side) to only forward `type: "s"` (Success Login) events; `services/auth0logs`'s webhook handler additionally filters to only `recordEvent()` entries whose `requested_client_id` is URL-shaped (i.e. actually CIMD, not just any login) — both checks happen before storage, so the ring buffer never fills with irrelevant logins.
+
+### `services/auth0logs` and the ALB security-group override
+
+`auth0logs` is `role: microservices` in `values.yaml`, deliberately reusing the existing `microservices-sg-policy` (its SG already allows inbound from `frontend` and `mcp` pods on port 3000) — this means the frontend's BFF can call `auth0logs` in-cluster with zero new AWS security-group rules. The only new AWS resource needed is the **ALB-level** SG for its public Ingress, since Auth0 Log Streams push from Auth0's own published outbound IP ranges (`https://cdn.auth0.com/ip-ranges.json`, per tenant region) — not from Anthropic's range, and not from personal IPs.
+
+This is why `helm/charts/nexuscrm/templates/ingress.yaml` has *two* different security-group knobs, and they are not interchangeable:
+- `ingress.extraSecurityGroupsSecretKey` (used by `mcp`) — **appends** one more SG to the shared personal-IP allowlist (`nexuscrm-alb-secret`'s `security-groups`). Right fit when the service still needs personal-IP access *plus* one more trusted source (e.g. Claude's Connector).
+- `ingress.securityGroupsSecretKey` (used by `auth0logs`) — **replaces** the shared base entirely. Right fit when personal-IP access is irrelevant and only the new trusted source (Auth0's ranges) should ever reach this ALB.
+
+Using the wrong knob for `auth0logs` (i.e. `extraSecurityGroupsSecretKey`) would have left the personal-IP allowlist mixed into an endpoint that only Auth0's servers should ever call.
+
+The webhook itself is defense-in-depth, not just network-restricted: `POST /webhooks/auth0-logs` also checks the `Authorization` header against `LOG_STREAM_TOKEN` (set as the Log Stream's "Authorization Token" in the Auth0 dashboard) — the IP-range SG narrows *who can reach the ALB at all*, the header check narrows *whether that specific request is accepted*, independent of the network layer.
 
 ### User ID strategy
 
