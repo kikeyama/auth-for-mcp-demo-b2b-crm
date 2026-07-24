@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building2, Briefcase, Users, ClipboardList, KeyRound, ShieldCheck, type LucideIcon } from 'lucide-react';
+import {
+  LayoutDashboard, Building2, Briefcase, Users, ClipboardList,
+  KeyRound, ShieldCheck, ChevronLeft, ChevronRight, type LucideIcon,
+} from 'lucide-react';
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/dashboard',     label: 'ダッシュボード', icon: LayoutDashboard },
@@ -13,46 +17,59 @@ const navItems: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const adminNavItems: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: '/cimd-requests',  label: 'CIMD認証リクエスト', icon: ShieldCheck },
-  { href: '/mcp-debug',      label: 'MCPトークン',        icon: KeyRound },
+  { href: '/debug/mcp-discovery', label: 'MCP認可ディスカバリー', icon: ShieldCheck },
+  { href: '/debug/mcp-token',     label: 'MCPトークン',          icon: KeyRound },
 ];
 
-function NavLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: LucideIcon; active: boolean }) {
+function NavLink({ href, label, icon: Icon, active, collapsed }: {
+  href: string; label: string; icon: LucideIcon; active: boolean; collapsed: boolean;
+}) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+      title={collapsed ? label : undefined}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${collapsed ? 'justify-center' : ''} ${
         active
           ? 'bg-brand-600 text-white'
           : 'text-brand-100 hover:bg-brand-700 hover:text-white'
       }`}
     >
       <Icon className="w-4 h-4 flex-shrink-0" />
-      {label}
+      {!collapsed && label}
     </Link>
   );
 }
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <aside className="w-56 min-h-screen bg-brand-900 text-white flex flex-col">
-      <div className="px-6 py-5 border-b border-brand-700">
-        <span className="text-xl font-bold tracking-tight">NexusCRM</span>
+    <aside className={`min-h-screen bg-brand-900 text-white flex flex-col flex-shrink-0 transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
+      <div className={`flex items-center border-b border-brand-700 py-5 ${collapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
+        {!collapsed && <span className="text-xl font-bold tracking-tight">NexusCRM</span>}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="p-1.5 rounded-md text-brand-100 hover:bg-brand-700 hover:text-white transition-colors flex-shrink-0"
+          title={collapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
       </div>
       <nav className="px-3 py-4 space-y-1">
         {navItems.map((item) => (
-          <NavLink key={item.href} {...item} active={isActive(item.href)} />
+          <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
         ))}
       </nav>
       <div className="px-3">
         <div className="border-t border-brand-700 mx-3 mb-3" />
-        <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-brand-100/60">管理</p>
+        {!collapsed && (
+          <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-brand-100/60">管理</p>
+        )}
         <div className="space-y-1">
           {adminNavItems.map((item) => (
-            <NavLink key={item.href} {...item} active={isActive(item.href)} />
+            <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
           ))}
         </div>
       </div>

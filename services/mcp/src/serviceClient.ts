@@ -1,5 +1,4 @@
-import { UserError } from 'fastmcp';
-import type { MCPSession } from './auth';
+import type { MCPSession } from './session';
 import { getOboToken } from './oboToken';
 
 export async function callService(
@@ -28,7 +27,7 @@ export async function callService(
       const j = JSON.parse(text) as { error?: string };
       if (j.error) message = j.error;
     } catch { /* ignore parse errors */ }
-    throw new UserError(message);
+    throw new Error(message);
   }
 
   if (res.status === 204) return null;

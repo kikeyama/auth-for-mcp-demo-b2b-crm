@@ -38,9 +38,11 @@ MCP サーバーは [MCP 仕様](https://modelcontextprotocol.io/specification/2
 |------|------|
 | `POST /mcp` | MCP Streamable HTTP トランスポート（ツール呼び出し） |
 | `GET /.well-known/oauth-protected-resource` | RFC 9728 — AI クライアントが認可サーバーを発見するエントリポイント |
-| `GET /.well-known/oauth-authorization-server` | OAuth 2.0 AS メタデータ — Auth0 のエンドポイント情報を返す |
+| `GET /.well-known/oauth-protected-resource/mcp` | 上記と同一内容（RFC 9728準拠のパス。401 の `WWW-Authenticate: resource_metadata=` にはこちらが使われる） |
 | `GET /healthz/live` | Liveness probe — 常に 200 を返す |
 | `GET /healthz/ready` | Readiness probe — 常に 200 を返す |
+
+> `/.well-known/oauth-authorization-server` は MCP サーバー自身のドメインでは提供しません。AI クライアントは `authorization_servers` で示された Auth0 自身のドメインから直接 AS メタデータを取得するため（後述の CIMD フロー参照）、MCP サーバー側でミラーする必要がないからです。
 
 ---
 
@@ -237,16 +239,13 @@ npm install --prefix services/mcp
 npm run dev --prefix services/mcp
 ```
 
-起動後、CIMD サポートが広告されていることを確認します。
+起動後、Protected Resource Metadata が返ることを確認します。
 
 ```bash
-# CIMD サポートの確認（true が返ること）
-curl http://localhost:3006/.well-known/oauth-authorization-server \
-  | jq '.client_id_metadata_document_supported'
-
-# 認可サーバーの情報確認
 curl http://localhost:3006/.well-known/oauth-protected-resource
 ```
+
+CIMD サポートの確認は Auth0 テナント側（手順 1 参照）で行います。MCP サーバー自身はこれを広告しません。
 
 ---
 
@@ -305,141 +304,161 @@ Server URL: http://localhost:3006/mcp
 
 ## Auth for MCP の実装
 
-Auth for MCP は **Auth0 の認可サーバー機能** + **fastmcp の OAuth ディスカバリー** + **`@auth0/auth0-api-js` のトークン検証** の 3 層で構成されています。Auth0 専用の「Auth for MCP SDK」は存在せず、それぞれの役割を持つ既存の部品を組み合わせています。
+Auth for MCP は **Auth0 の認可サーバー機能** + **`@modelcontextprotocol/sdk`（公式SDK）の OAuth ディスカバリー/検証ミドルウェア** + **`@auth0/auth0-api-js` のトークン検証** の 3 層で構成されています。Auth0 専用の「Auth for MCP SDK」は存在せず、それぞれの役割を持つ既存の部品を組み合わせています。
+
+`services/mcp` は当初 `fastmcp`（3rd party wrapper）で実装していましたが、`fastmcp` の依存先 `mcp-proxy` に OAuth 実装バグ（`resource_metadata` のパス順序誤り、`WWW-Authenticate` への `scope` 欠落）が見つかったため、正規の `@modelcontextprotocol/sdk` へ移行しました。詳細は [`docs/known-issues.md`](../../docs/known-issues.md) を参照してください。
 
 | 役割 | 担当 |
 |------|------|
-| OAuth ディスカバリーエンドポイントの提供 (`/.well-known/*`) | `fastmcp` の `oauth` オプション |
-| JWT トークンの検証 | `@auth0/auth0-api-js` |
-| 認可サーバーとしての機能（PKCE、CIMD、DCR） | Auth0 テナント（GA 済み、設定不要） |
+| Protected Resource Metadata の提供 (`/.well-known/oauth-protected-resource`) | `src/index.ts` の手動ルート + SDK の `getOAuthProtectedResourceMetadataUrl()` |
+| Bearer トークンの検証・401応答の生成 | `@modelcontextprotocol/sdk` の `requireBearerAuth` ミドルウェア |
+| JWT トークンの検証（署名・`iss`・`aud`） | `@auth0/auth0-api-js` |
+| 認可サーバーとしての機能（PKCE、CIMD、DCR、AS メタデータ配信） | Auth0 テナント（GA 済み、設定不要。MCP サーバー側でミラーしない） |
 
 ---
 
-### Step 1 — fastmcp で OAuth ディスカバリーを有効化（`src/index.ts`）
+### Step 1 — Protected Resource Metadata と MCP エンドポイントを公開（`src/index.ts`）
 
-`FastMCP` コンストラクタの `oauth` オプションを設定するだけで、fastmcp が `/.well-known/oauth-protected-resource`（RFC 9728）と `/.well-known/oauth-authorization-server` を自動的にサーブします。
-
-`client_id_metadata_document_supported: true` を追加することで、CIMD に対応した AS メタデータをクライアントに広告します。
+RFC 9728 の Protected Resource Metadata を手動で構築し、`/.well-known/oauth-protected-resource`（と、SDK の `getOAuthProtectedResourceMetadataUrl()` が返す正規パス `/.well-known/oauth-protected-resource/mcp`）で配信します。`/mcp` へのリクエストは `requireBearerAuth` ミドルウェアを通過してから、リクエストごとに新しい `McpServer` インスタンスへ渡されます。
 
 ```typescript
-// src/index.ts
-import { FastMCP } from 'fastmcp';
-import { authenticate, type MCPSession } from './auth';
+// src/index.ts（抜粋）
+import express from 'express';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
+import { getOAuthProtectedResourceMetadataUrl } from '@modelcontextprotocol/sdk/server/auth/router.js';
+import { Auth0TokenVerifier, apiClient } from './auth/verifier';
 
-const server = new FastMCP<MCPSession>({
-  name: 'NexusCRM MCP Server',
-  version: '1.0.0',
-  authenticate,           // ← リクエストごとに呼ばれるトークン検証関数
-  oauth: {
-    enabled: true,
+const app = express();
 
-    // /.well-known/oauth-protected-resource の内容
-    // AI クライアントはここで「どの認可サーバーを使うか」を知る
-    protectedResource: {
-      resource:             'http://localhost:3006/mcp', // MCP サーバー URL (RFC 9728 §2) — audience とは別物
-      authorizationServers: ['https://your-tenant.auth0.com/'],
-      jwksUri:              'https://your-tenant.auth0.com/.well-known/jwks.json',
-      scopesSupported: ['read:accounts', 'create:accounts', /* ... */],
-    },
+// AI クライアントはここで「どの認可サーバー（Auth0）を使うか」を知る
+const protectedResourceMetadata = {
+  resource:              'http://localhost:3006/mcp', // MCP サーバー URL (RFC 9728 §2) — audience と同じ値
+  authorization_servers: ['https://your-tenant.auth0.com/'],
+  jwks_uri:               'https://your-tenant.auth0.com/.well-known/jwks.json',
+  scopes_supported:      ['read:accounts', 'create:accounts', /* ... */],
+};
 
-    // /.well-known/oauth-authorization-server の内容
-    // client_id_metadata_document_supported: true → CIMD を優先使用
-    // registrationEndpoint → CIMD 非対応クライアント向け DCR フォールバック
-    authorizationServer: {
-      issuer:                              'https://your-tenant.auth0.com/',
-      // audience= を埋め込む: mcp-remote は audience パラメータを付けないため、
-      // ここに固定しないと Auth0 がオペーク トークンを発行してしまう。
-      // 値は MCP サーバー自身の audience（downstream API の audience とは別物）。
-      authorizationEndpoint:               'https://your-tenant.auth0.com/authorize?audience=http://localhost:3006/mcp',
-      tokenEndpoint:                       'https://your-tenant.auth0.com/oauth/token',
-      responseTypesSupported:              ['code'],
-      codeChallengeMethodsSupported:       ['S256'],    // PKCE 必須
-      grantTypesSupported:                 ['authorization_code', 'refresh_token'],
-      client_id_metadata_document_supported: true,     // CIMD サポートを広告
-      registrationEndpoint:               'https://your-tenant.auth0.com/oidc/register',
-    } as any, // fastmcp の型定義が client_id_metadata_document_supported に未対応
-  },
+const resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(new URL('http://localhost:3006/mcp'));
+app.get(new URL(resourceMetadataUrl).pathname, (_req, res) => res.json(protectedResourceMetadata));
+app.get('/.well-known/oauth-protected-resource', (_req, res) => res.json(protectedResourceMetadata));
+
+const verifier = new Auth0TokenVerifier(apiClient);
+
+app.all('/mcp', requireBearerAuth({ verifier, resourceMetadataUrl }), async (req, res) => {
+  const server = new McpServer({ name: 'NexusCRM MCP Server', version: '1.0.0' });
+  // ... ツール登録（Step 3 参照） ...
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
 });
 ```
 
-AI クライアントが `/mcp` にトークンなしでアクセスすると、fastmcp は自動的に以下を返します。
+AI クライアントが `/mcp` にトークンなしでアクセスすると、`requireBearerAuth` が自動的に以下を返します。
 
 ```
 HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Bearer resource_metadata="http://localhost:3006/.well-known/oauth-protected-resource"
+WWW-Authenticate: Bearer error="invalid_token", error_description="Missing Authorization header", resource_metadata="http://localhost:3006/.well-known/oauth-protected-resource/mcp"
 ```
 
-これが MCP の OAuth ディスカバリーフローのエントリポイントです。
+これが MCP の OAuth ディスカバリーフローのエントリポイントです。CIMD/DCR や AS メタデータ自体（`/.well-known/oauth-authorization-server`）はここでは配信しません — AI クライアントは `authorization_servers` に示された Auth0 自身のドメインへ直接それらを取得しに行くため、MCP サーバー側でミラーする必要がないからです。
 
 ---
 
-### Step 2 — `@auth0/auth0-api-js` でトークンを検証（`src/auth.ts`）
+### Step 2 — `@auth0/auth0-api-js` でトークンを検証（`src/auth/verifier.ts`）
 
-`authenticate` 関数は fastmcp から各リクエストごとに呼び出されます。`@auth0/auth0-api-js` の `ApiClient` が JWT 検証（署名・`iss`・`aud`・有効期限）を担います。
+`Auth0TokenVerifier` クラスが SDK の `OAuthTokenVerifier` インターフェースを実装し、`requireBearerAuth` から各リクエストごとに呼び出されます。`@auth0/auth0-api-js` の `ApiClient` が JWT 検証（署名・`iss`・`aud`・有効期限）を担います。
 
 ```typescript
-// src/auth.ts
-import { ApiClient, getToken } from '@auth0/auth0-api-js';
-import type http from 'http';
+// src/auth/verifier.ts
+import { ApiClient } from '@auth0/auth0-api-js';
+import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
+import type { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provider.js';
+import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
 // ApiClient はモジュールレベルで一度だけ初期化（JWKS をキャッシュ）。
 // audience は MCP サーバー自身のもの（受信トークンの aud 検証用）。
 // clientId/clientSecret は OBO token exchange (getTokenOnBehalfOf) が要求する confidential client 認証情報。
-const apiClient = new ApiClient({
+export const apiClient = new ApiClient({
   domain:       'your-tenant.auth0.com',  // スキームなし
   audience:     'http://localhost:3006/mcp',
   clientId:     'your-mcp-client-id',
   clientSecret: 'your-mcp-client-secret',
 });
 
-export type MCPSession = {
-  token:  string;   // 後でマイクロサービスへ転送するために保持
-  sub:    string;   // Auth0 ユーザー ID
-  orgId:  string;   // B2B マルチテナント: org_id クレーム
-  scopes: string[]; // 付与されたスコープ一覧
-};
+// AuthInfo（SDK標準）には org_id の概念が無いため独自フィールドとして拡張する
+export interface MCPAuthInfo extends AuthInfo {
+  sub:   string;
+  orgId: string;
+}
 
-export async function authenticate(
-  request: http.IncomingMessage,
-): Promise<MCPSession> {
-  const token = getToken(
-    request.headers as Record<string, string | string[] | undefined>,
-  );
+export class Auth0TokenVerifier implements OAuthTokenVerifier {
+  constructor(private readonly client: ApiClient) {}
 
-  // 検証失敗（期限切れ・署名不正など）は例外がスローされ fastmcp が 401 を返す
-  const claims = await apiClient.verifyAccessToken({ accessToken: token });
+  async verifyAccessToken(token: string): Promise<MCPAuthInfo> {
+    try {
+      const claims = await this.client.verifyAccessToken({ accessToken: token });
 
-  // B2B 必須: org_id がない = 組織コンテキストなし → 拒否
-  const orgId = claims['org_id'] as string | undefined;
-  if (!orgId) throw new Error('Organization context required');
+      // B2B 必須: org_id がない = 組織コンテキストなし → 拒否
+      const orgId = claims['org_id'] as string | undefined;
+      if (!orgId) throw new Error('Organization context required');
 
-  return {
-    token,
-    sub: claims.sub!,
-    orgId,
-    scopes: ((claims.scope as string) ?? '').split(' ').filter(Boolean),
-  };
+      const sub = claims.sub;
+      if (!sub) throw new Error('Missing sub claim');
+
+      return {
+        token,
+        clientId:  (claims.azp as string | undefined) ?? sub,
+        scopes:    ((claims.scope as string | undefined) ?? '').split(' ').filter(Boolean),
+        expiresAt: claims.exp,
+        sub,
+        orgId,
+      };
+    } catch (err) {
+      // requireBearerAuth は InvalidTokenError だけを 401 + WWW-Authenticate に変換する。
+      // 素の Error のままだと 500 になってしまうため必ずラップする。
+      throw new InvalidTokenError(err instanceof Error ? err.message : 'Unauthorized');
+    }
+  }
 }
 ```
 
 ---
 
-### Step 3 — ツールハンドラーでセッション情報を利用（`src/tools/*.ts`）
+### Step 3 — ツールハンドラーでセッション情報を利用（`src/tools/*.ts` / `src/registerTool.ts`）
+
+各ツールファイルは `ToolDef[]`（`{name, description, inputSchema, execute(args, session)}`）を export し、`registerTool()` がリクエストごとの `McpServer` インスタンスへ登録します。
 
 ```typescript
 // src/tools/accounts.ts（抜粋）
-export const accountTools: Tool<MCPSession, any>[] = [
+export const accountTools: ToolDef[] = [
   {
     name: 'get_account',
-    parameters: z.object({ id: z.string() }),
-    execute: async (args, ctx) => {
-      // ctx.session       → MCPSession（callService 内で OBO exchange に使われる）
-      // ctx.session.orgId → org_id クレーム（テナント識別）
-      const data = await callService(base, `/accounts/${args.id}`, 'GET', ctx.session!);
+    description: '指定した顧客企業の詳細を取得します。',
+    inputSchema: { id: z.string() },
+    execute: async (args, session) => {
+      // session       → MCPSession（callService 内で OBO exchange に使われる）
+      // session.orgId → org_id クレーム（テナント識別）
+      const data = await callService(base, `/accounts/${args.id}`, 'GET', session, 'get_account');
       return JSON.stringify(data, null, 2);
     },
   },
 ];
+```
+
+```typescript
+// src/registerTool.ts（抜粋）— ToolDef を McpServer.registerTool() のAPIに変換
+export function registerTool(server: McpServer, tool: ToolDef, session: MCPSession) {
+  server.registerTool(
+    tool.name,
+    { description: tool.description, inputSchema: tool.inputSchema },
+    async (args) => {
+      const text = await tool.execute(args, session);
+      return { content: [{ type: 'text' as const, text }] };
+    },
+  );
+}
 ```
 
 ---

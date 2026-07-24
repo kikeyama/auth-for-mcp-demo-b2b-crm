@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
+import { TokenExchangeSequenceDiagram } from '@/components/diagrams/TokenExchangeSequenceDiagram';
 import { RefreshCw, Trash2, Copy, Check } from 'lucide-react';
 
 interface DecodedToken {
@@ -167,16 +168,20 @@ export default function McpDebugPage() {
     <>
       <Header title="MCPトークンビューア" />
       <main className="flex-1 overflow-auto p-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 mb-6">
+          <TokenExchangeSequenceDiagram />
+        </div>
+
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-gray-500">
             MCPクライアントから受け取ったトークンと、On-Behalf-Of (OBO) Token Exchangeで交換したAPIトークンを表示します（デモ用途）。
           </p>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <label className="flex items-center gap-2 text-xs text-gray-500 whitespace-nowrap">
               <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
               自動更新
             </label>
-            <button onClick={load} className="btn-secondary text-xs px-3 py-1.5 gap-1.5">
+            <button onClick={load} className="btn-secondary text-xs px-3 py-1.5 gap-1.5 whitespace-nowrap">
               <RefreshCw className="w-3.5 h-3.5" /> 更新
             </button>
           </div>

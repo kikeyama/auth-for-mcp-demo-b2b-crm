@@ -1,7 +1,7 @@
 import { LRUCache } from 'lru-cache';
-import { apiClient } from './auth';
+import { apiClient } from './auth/verifier';
 import { config } from './config';
-import type { MCPSession } from './auth';
+import type { MCPSession } from './session';
 import { recordExchange } from './debug/store';
 
 // Cache keyed by "sub:orgId"; TTL is derived from the exchanged token's expiresAt.
