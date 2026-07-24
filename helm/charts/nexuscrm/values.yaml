@@ -138,7 +138,7 @@ services:
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
 
   frontend:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:8f8b0a1
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:3df76f1
     healthcheck:
       live: /api/healthz/live
       ready: /api/healthz/ready
@@ -176,7 +176,7 @@ services:
       AUTH0LOGS_SERVICE_URL: "http://auth0logs:3000"
 
   mcp:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:b002324
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:3df76f1
     ingress:
       enabled: true
       hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名

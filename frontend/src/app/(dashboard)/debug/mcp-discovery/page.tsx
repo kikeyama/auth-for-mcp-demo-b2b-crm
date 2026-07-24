@@ -57,6 +57,25 @@ function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleString('ja-JP', { hour12: false });
 }
 
+// WWW-Authenticate ヘッダー文字列のうち resource_metadata="..." の部分だけを
+// 強調表示する（このセクションが実際にディスカバリーするURLのため）。
+function highlightResourceMetadata(header: string) {
+  const match = header.match(/resource_metadata="[^"]*"/);
+  if (!match) return header;
+
+  const start = header.indexOf(match[0]);
+  const before = header.slice(0, start);
+  const after = header.slice(start + match[0].length);
+
+  return (
+    <>
+      {before}
+      <span className="text-purple-700 font-semibold">{match[0]}</span>
+      {after}
+    </>
+  );
+}
+
 // obj のうち keys で指定したフィールドだけを実際の値のまま抜粋し、それ以外は "..." で省略した
 // 表示専用の JSON 風文字列を組み立てる（パース可能な厳密な JSON ではなく、あくまで説明用の抜粋）。
 function excerptJson(obj: Record<string, unknown> | null, keys: string[]): string {
@@ -189,7 +208,7 @@ export default function CimdRequestsPage() {
           </button>
         </div>
 
-        <Section step={1} title="保護対象リソースメタデータ探索（Protected Resource Metadata Discovery）">
+        <Section step={1} title="保護対象リソースメタデータディスカバリー（Protected Resource Metadata Discovery）">
           <p className="text-sm text-gray-500 mb-4">
             MCP仕様に従い、トークン無し／無効なリクエストに対して MCP サーバーが実際に返している <code className="font-mono">401</code> レスポンスの <code className="font-mono">WWW-Authenticate</code> ヘッダーと、そこで示された <code className="font-mono">resource_metadata</code> を実際にフェッチして得た Protected Resource Metadata です（最新の1件のみ表示）。
           </p>
@@ -214,7 +233,7 @@ export default function CimdRequestsPage() {
               </div>
               <p className="text-xs text-gray-500 mb-1">WWW-Authenticate:</p>
               <pre className="text-xs font-mono bg-gray-50 rounded-lg p-3 overflow-x-auto break-all whitespace-pre-wrap">
-                {latestAuthFailure.wwwAuthenticateHeader}
+                {highlightResourceMetadata(latestAuthFailure.wwwAuthenticateHeader)}
               </pre>
             </div>
           )}
@@ -235,7 +254,7 @@ export default function CimdRequestsPage() {
           )}
         </Section>
 
-        <Section step={2} title="認可サーバーメタデータ探索（Authorization Server Metadata Discovery）">
+        <Section step={2} title="認可サーバーメタデータディスカバリー（Authorization Server Metadata Discovery）">
           <p className="text-sm text-gray-500 mb-4">
             Protected Resource Metadata の <code className="font-mono">authorization_servers</code> が示す認可サーバー（Auth0）から実際にフェッチした Authorization Server Metadata です。
           </p>
