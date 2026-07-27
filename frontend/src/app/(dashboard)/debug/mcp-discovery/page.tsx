@@ -109,7 +109,7 @@ export default function CimdRequestsPage() {
   const [authServerMetadataError, setAuthServerMetadataError] = useState('');
 
   const loadLatestRecord = useCallback(() => {
-    fetch('/api/auth0-logs')
+    return fetch('/api/auth0-logs')
       .then((r) => r.json())
       .then((data: { records?: Auth0LogRecord[]; error?: string }) => {
         if (data.error) { setError(data.error); return; }
@@ -121,7 +121,7 @@ export default function CimdRequestsPage() {
   }, []);
 
   const loadLatestAuthFailure = useCallback(() => {
-    fetch('/api/mcp-auth-failures')
+    return fetch('/api/mcp-auth-failures')
       .then((r) => r.json())
       .then((data: { records?: AuthFailureRecord[]; error?: string }) => {
         if (data.error) { setAuthFailuresError(data.error); return; }
@@ -132,7 +132,7 @@ export default function CimdRequestsPage() {
   }, []);
 
   const loadResourceMetadata = useCallback(() => {
-    fetch('/api/mcp-resource-metadata')
+    return fetch('/api/mcp-resource-metadata')
       .then((r) => r.json())
       .then((res: { url?: string; data?: ProtectedResourceMetadata; error?: string }) => {
         if (res.error) { setResourceMetadataError(res.error); return; }
@@ -155,10 +155,10 @@ export default function CimdRequestsPage() {
       .catch(() => setResourceMetadataError('mcpサービスに接続できません'));
   }, []);
 
-  const loadAll = useCallback(() => {
-    loadLatestRecord();
-    loadLatestAuthFailure();
-    loadResourceMetadata();
+  const loadAll = useCallback(async () => {
+    await loadLatestRecord();
+    await loadLatestAuthFailure();
+    await loadResourceMetadata();
   }, [loadLatestRecord, loadLatestAuthFailure, loadResourceMetadata]);
 
   useEffect(() => {

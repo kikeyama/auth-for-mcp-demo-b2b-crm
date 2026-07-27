@@ -4,8 +4,10 @@ import type { NextRequest } from 'next/server';
 // issuer は Protected Resource Metadata の authorization_servers[0]
 // （クライアントが実際に発見した認可サーバーの URL）をそのまま受け取る。
 export async function GET(req: NextRequest) {
-  const session = await auth0.getSession();
-  if (!session) return Response.json({ error: '認証が必要です' }, { status: 401 });
+  try { await auth0.getAccessToken(); } catch (err) {
+    console.error('[api/auth-server-metadata] getAccessToken failed:', err);
+    return Response.json({ error: '認証が必要です' }, { status: 401 });
+  }
 
   const issuer = req.nextUrl.searchParams.get('issuer');
   if (!issuer || !issuer.startsWith('https://')) {

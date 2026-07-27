@@ -1,4 +1,9 @@
+import { cache } from 'react';
 import { auth0 } from './auth0';
+
+// React.cache() deduplicates concurrent calls within the same render tree,
+// preventing refresh token rotation conflicts when multiple serverGet calls run in parallel.
+const getAccessToken = cache(() => auth0.getAccessToken());
 
 const SERVICE_URLS: Record<string, string> = {
   accounts:      process.env.ACCOUNT_SERVICE_URL     ?? 'http://localhost:3001',
@@ -9,7 +14,7 @@ const SERVICE_URLS: Record<string, string> = {
 };
 
 export async function serverGet(service: string, path: string): Promise<any> {
-  const { token } = await auth0.getAccessToken();
+  const { token } = await getAccessToken();
   const baseUrl = SERVICE_URLS[service as keyof typeof SERVICE_URLS];
   const url = new URL(path, baseUrl);
   const res = await fetch(url.toString(), {
@@ -22,7 +27,7 @@ export async function serverGet(service: string, path: string): Promise<any> {
 }
 
 export async function serverPost(service: string, path: string, body: unknown): Promise<any> {
-  const { token } = await auth0.getAccessToken();
+  const { token } = await getAccessToken();
   const baseUrl = SERVICE_URLS[service as keyof typeof SERVICE_URLS];
   const url = new URL(path, baseUrl);
   const res = await fetch(url.toString(), {
@@ -40,7 +45,7 @@ export async function serverPost(service: string, path: string, body: unknown): 
 }
 
 export async function serverPatch(service: string, path: string, body: unknown): Promise<any> {
-  const { token } = await auth0.getAccessToken();
+  const { token } = await getAccessToken();
   const baseUrl = SERVICE_URLS[service as keyof typeof SERVICE_URLS];
   const url = new URL(path, baseUrl);
   const res = await fetch(url.toString(), {
