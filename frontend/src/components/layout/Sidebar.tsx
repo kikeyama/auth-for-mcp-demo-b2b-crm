@@ -27,6 +27,7 @@ function NavLink({ href, label, icon: Icon, active, collapsed }: {
   return (
     <Link
       href={href}
+      prefetch={false}
       title={collapsed ? label : undefined}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${collapsed ? 'justify-center' : ''} ${
         active

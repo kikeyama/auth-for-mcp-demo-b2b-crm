@@ -78,18 +78,29 @@ function highlightResourceMetadata(header: string) {
 
 // obj のうち keys で指定したフィールドだけを実際の値のまま抜粋し、それ以外は "..." で省略した
 // 表示専用の JSON 風文字列を組み立てる（パース可能な厳密な JSON ではなく、あくまで説明用の抜粋）。
-function excerptJson(obj: Record<string, unknown> | null, keys: string[]): string {
+// highlightKeys に含まれるキーの値だけ、他のハイライトと同じ太字＋紫色で強調する。
+function excerptJson(obj: Record<string, unknown> | null, keys: string[], highlightKeys: string[] = []): React.ReactNode {
   if (!obj) return '{\n  ...\n}';
 
-  const lines = keys
-    .filter((key) => key in obj)
-    .map((key) => {
-      const raw = JSON.stringify(obj[key], null, 2);
-      const indented = raw.split('\n').map((line, i) => (i === 0 ? line : `  ${line}`)).join('\n');
-      return `  "${key}": ${indented}`;
-    });
+  const entries = keys.filter((key) => key in obj);
 
-  return `{\n${lines.map((l) => `${l},`).join('\n')}\n  ...\n}`;
+  return (
+    <>
+      {'{\n'}
+      {entries.map((key) => {
+        const raw = JSON.stringify(obj[key], null, 2);
+        const indented = raw.split('\n').map((line, i) => (i === 0 ? line : `  ${line}`)).join('\n');
+        return (
+          <span key={key}>
+            {`  "${key}": `}
+            {highlightKeys.includes(key) ? <span className="text-purple-700 font-semibold">{indented}</span> : indented}
+            {',\n'}
+          </span>
+        );
+      })}
+      {'  ...\n}'}
+    </>
+  );
 }
 
 export default function CimdRequestsPage() {
@@ -249,7 +260,7 @@ export default function CimdRequestsPage() {
           )}
           {!resourceMetadataError && (
             <pre className="text-xs font-mono bg-gray-50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
-              {resourceMetadata ? excerptJson(resourceMetadata, ['authorization_servers', 'scopes_supported']) : '読み込み中...'}
+              {resourceMetadata ? excerptJson(resourceMetadata, ['authorization_servers', 'scopes_supported'], ['authorization_servers']) : '読み込み中...'}
             </pre>
           )}
         </Section>
@@ -269,14 +280,18 @@ export default function CimdRequestsPage() {
           )}
           {!authServerMetadataError && (
             <pre className="text-xs font-mono bg-gray-50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
-              {authServerMetadata ? excerptJson(authServerMetadata, ['client_id_metadata_document_supported']) : '読み込み中...'}
+              {authServerMetadata ? excerptJson(
+                authServerMetadata,
+                ['client_id_metadata_document_supported'],
+                authServerMetadata.client_id_metadata_document_supported === true ? ['client_id_metadata_document_supported'] : [],
+              ) : '読み込み中...'}
             </pre>
           )}
         </Section>
 
         <Section step={3} title="クライアント登録（Client Registration） - Client ID Metadata Documents">
           <p className="text-sm text-gray-500 mb-4">
-            Auth0 の Log Stream（Custom Webhook）からリアルタイムに受信した、CIMD（Client ID Metadata Documents）経由の認証成功リクエストです（最新の1件のみ表示）。
+            Auth0 の Log Stream からリアルタイムに受信した、CIMD（Client ID Metadata Documents）経由の認証成功リクエストです（最新の1件のみ表示）。
           </p>
 
           {error && (
