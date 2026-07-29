@@ -21,7 +21,7 @@ MCP サーバー (port 3006)
 
 ### 2 つの Audience（OBO Token Exchange）
 
-MCP サーバーは [MCP 仕様](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization#access-token-privilege-restriction) に従い、AI エージェントから受け取ったトークンをそのままマイクロサービスへ転送しません。代わりに Auth0 の [On-Behalf-Of Token Exchange](https://auth0.com/ai/docs/mcp/get-started/call-your-apis-on-users-behalf) を使い、MCP サーバー自身が **resource server**（受信トークンの検証）と **client**（downstream API 呼び出し）の二重の役割を持ちます。それぞれ別の Auth0 API・別の audience として登録する必要があります。
+MCP サーバーは [MCP 仕様](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/security-considerations#access-token-privilege-restriction) に従い、AI エージェントから受け取ったトークンをそのままマイクロサービスへ転送しません。代わりに Auth0 の [On-Behalf-Of Token Exchange](https://auth0.com/ai/docs/mcp/get-started/call-your-apis-on-users-behalf) を使い、MCP サーバー自身が **resource server**（受信トークンの検証）と **client**（downstream API 呼び出し）の二重の役割を持ちます。それぞれ別の Auth0 API・別の audience として登録する必要があります。
 
 | 環境変数 | Audience | 役割 |
 |---|---|---|
@@ -75,12 +75,12 @@ MCP サーバーは [MCP 仕様](https://modelcontextprotocol.io/specification/2
 
 ## クライアント登録方式
 
-MCP spec (2025-11-25) は 3 つのクライアント登録方式を定義しています。本デモは **CIMD を第一優先**、DCR をフォールバックとして使用します。
+[MCP spec (2026-07-28)](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration) は 3 つのクライアント登録方式を定義しています。本デモは **CIMD を第一優先**、DCR をフォールバックとして使用します。
 
 | 方式 | 概要 | 本デモでの扱い |
 |------|------|----------------|
 | **CIMD** (Client ID Metadata Document) | HTTPS URL を `client_id` として使う。AS がその URL からメタデータを取得 | ✅ 第一優先 |
-| **DCR** (Dynamic Client Registration) | 初回接続時にクライアントが AS へ自己登録 | ⚠️ フォールバック |
+| **DCR** (Dynamic Client Registration) | 初回接続時にクライアントが AS へ自己登録。仕様上 **deprecated**（CIMD 非対応の AS 向けの後方互換用） | ⚠️ フォールバック |
 | **事前登録** | Auth0 ダッシュボードで手動登録 | ❌ 非推奨（クライアントが増えるたびに作業が発生） |
 
 ### CIMD を選ぶ理由
