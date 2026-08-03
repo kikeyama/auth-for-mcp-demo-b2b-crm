@@ -14,7 +14,7 @@ import { contactTools } from './tools/contacts';
 import { activityTools } from './tools/activities';
 import { userTools } from './tools/users';
 import { getRecords, removeRecord } from './debug/store';
-import { getAuthFailures, removeAuthFailure, recordAuthFailure } from './debug/authFailures';
+import { getAuthFailures, removeAuthFailure, clearAuthFailures, recordAuthFailure } from './debug/authFailures';
 
 const app = express();
 app.use(express.json());
@@ -125,6 +125,10 @@ if (process.env.ENABLE_TOKEN_DEBUG !== 'false') {
   app.delete('/debug/auth-failures/:id', (req, res) => {
     const removed = removeAuthFailure(req.params.id);
     if (!removed) { res.status(404).json({ error: 'Record not found' }); return; }
+    res.status(204).end();
+  });
+  app.delete('/debug/auth-failures', (_req, res) => {
+    clearAuthFailures();
     res.status(204).end();
   });
   console.log('Token debug viewer: enabled at /debug/tokens (ENABLE_TOKEN_DEBUG=false to disable)');

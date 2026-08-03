@@ -50,3 +50,7 @@ export function removeEvent(id: string): boolean {
   records.splice(index, 1);
   return true;
 }
+
+export function clearEvents() {
+  records.length = 0;
+}

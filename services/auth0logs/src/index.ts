@@ -1,7 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import { config } from './config';
-import { recordEvent, getEvents, removeEvent, extractRequestedClientId } from './store';
+import { recordEvent, getEvents, removeEvent, clearEvents, extractRequestedClientId } from './store';
 
 const app = express();
 app.use(helmet());
@@ -81,6 +81,10 @@ if (config.enableLogViewer) {
       res.status(404).json({ error: 'Record not found' });
       return;
     }
+    res.status(204).end();
+  });
+  app.delete('/logs', (_req, res) => {
+    clearEvents();
     res.status(204).end();
   });
   console.log('Log viewer: enabled at /logs (ENABLE_LOG_VIEWER=false to disable)');

@@ -26,9 +26,12 @@ export async function DELETE(req: NextRequest) {
   }
 
   const id = req.nextUrl.searchParams.get('id');
-  if (!id) return Response.json({ error: 'id is required' }, { status: 400 });
+  // id 無しは「全件削除」(クリア) を意味する
+  const url = id
+    ? `${MCP_SERVICE_URL}/debug/auth-failures/${encodeURIComponent(id)}`
+    : `${MCP_SERVICE_URL}/debug/auth-failures`;
 
-  const res = await fetch(`${MCP_SERVICE_URL}/debug/auth-failures/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  const res = await fetch(url, { method: 'DELETE' });
   if (!res.ok && res.status !== 204) {
     const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     return Response.json(body, { status: res.status });

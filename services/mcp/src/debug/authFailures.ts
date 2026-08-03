@@ -49,3 +49,7 @@ export function removeAuthFailure(id: string): boolean {
   records.splice(index, 1);
   return true;
 }
+
+export function clearAuthFailures() {
+  records.length = 0;
+}

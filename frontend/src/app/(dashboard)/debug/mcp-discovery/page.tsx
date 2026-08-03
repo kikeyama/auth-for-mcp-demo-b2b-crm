@@ -103,6 +103,12 @@ function excerptJson(obj: Record<string, unknown> | null, keys: string[], highli
   );
 }
 
+// クリア後は「更新」を押すまでPRM/AS metadataを再取得しない。コンポーネント単位の
+// state/refだとページ遷移でアンマウント→再マウントされた際にリセットされてしまうため、
+// モジュールスコープに置いてクライアントサイド遷移をまたいで抑制状態を維持する
+// （ブラウザの完全リロードでは通常のモジュール再評価によりリセットされる）。
+let metadataSuppressed = false;
+
 export default function CimdRequestsPage() {
   const [latestRecord, setLatestRecord] = useState<Auth0LogRecord | null>(null);
   const [error, setError] = useState('');
@@ -169,7 +175,9 @@ export default function CimdRequestsPage() {
   const loadAll = useCallback(async () => {
     await loadLatestRecord();
     await loadLatestAuthFailure();
-    await loadResourceMetadata();
+    if (!metadataSuppressed) {
+      await loadResourceMetadata();
+    }
   }, [loadLatestRecord, loadLatestAuthFailure, loadResourceMetadata]);
 
   useEffect(() => {
@@ -179,23 +187,29 @@ export default function CimdRequestsPage() {
     return () => clearInterval(interval);
   }, [loadAll, autoRefresh]);
 
+  function handleRefresh() {
+    metadataSuppressed = false;
+    loadAll();
+  }
+
   function handleClearAll() {
-    if (latestRecord) {
-      fetch(`/api/auth0-logs?id=${encodeURIComponent(latestRecord.id)}`, { method: 'DELETE' }).catch(() => {
-        // 削除に失敗しても次回の更新で実情が反映される
-      });
-    }
-    if (latestAuthFailure) {
-      fetch(`/api/mcp-auth-failures?id=${encodeURIComponent(latestAuthFailure.id)}`, { method: 'DELETE' }).catch(() => {
-        // 削除に失敗しても次回の更新で実情が反映される
-      });
-    }
+    // id を付けずに DELETE すると、表示中の1件だけでなくバックエンドの履歴を全件削除する。
+    // 最新1件だけを消すと、次にページへ戻った時に控えていた古い記録が「最新」として
+    // 再表示され、クリアしたはずの内容が復活したように見えてしまうため。
+    fetch('/api/auth0-logs', { method: 'DELETE' }).catch(() => {
+      // 削除に失敗しても次回の更新で実情が反映される
+    });
+    fetch('/api/mcp-auth-failures', { method: 'DELETE' }).catch(() => {
+      // 削除に失敗しても次回の更新で実情が反映される
+    });
     setLatestRecord(null);
     setLatestAuthFailure(null);
     setResourceMetadata(null);
     setResourceMetadataUrl('');
     setAuthServerMetadata(null);
     setAuthServerMetadataUrl('');
+    // PRM/AS metadata はライブデータで消せる履歴が無いため、次の「更新」まで再取得を止める
+    metadataSuppressed = true;
   }
 
   return (
@@ -211,7 +225,7 @@ export default function CimdRequestsPage() {
             <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
             自動更新
           </label>
-          <button onClick={loadAll} className="btn-secondary text-xs px-3 py-1.5 gap-1.5">
+          <button onClick={handleRefresh} className="btn-secondary text-xs px-3 py-1.5 gap-1.5">
             <RefreshCw className="w-3.5 h-3.5" /> 更新
           </button>
           <button onClick={handleClearAll} className="btn-secondary text-xs px-3 py-1.5 gap-1.5">
