@@ -1,0 +1,66 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="base" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00033E" />
+      <stop offset="55%" stop-color="#001FA5" />
+      <stop offset="100%" stop-color="#0131FF" />
+    </linearGradient>
+    <radialGradient id="glowTopRight" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#9AB7F0" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#9AB7F0" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowBottomLeft" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#D9DFFF" stop-opacity="0.30" />
+      <stop offset="100%" stop-color="#D9DFFF" stop-opacity="0" />
+    </radialGradient>
+    <filter id="soften" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="60" />
+    </filter>
+  </defs>
+
+  <!-- base brand gradient -->
+  <rect width="1920" height="1080" fill="url(#base)" />
+
+  <!-- soft ambient glows, kept off-center so the login card area stays clean -->
+  <circle cx="1550" cy="220" r="480" fill="url(#glowTopRight)" filter="url(#soften)" />
+  <circle cx="260" cy="880" r="420" fill="url(#glowBottomLeft)" filter="url(#soften)" />
+
+  <!-- abstract "connections" motif: nodes linked by thin lines, evoking a CRM relationship graph -->
+  <g stroke="#D9DFFF" stroke-opacity="0.22" stroke-width="1.5">
+    <line x1="120" y1="140" x2="340" y2="260" />
+    <line x1="340" y1="260" x2="300" y2="480" />
+    <line x1="340" y1="260" x2="560" y2="200" />
+    <line x1="560" y1="200" x2="760" y2="330" />
+    <line x1="300" y1="480" x2="180" y2="640" />
+    <line x1="1620" y1="760" x2="1780" y2="880" />
+    <line x1="1620" y1="760" x2="1460" y2="900" />
+    <line x1="1460" y1="900" x2="1520" y2="1040" />
+    <line x1="1780" y1="880" x2="1860" y2="1020" />
+    <line x1="1700" y1="120" x2="1860" y2="220" />
+    <line x1="1700" y1="120" x2="1560" y2="60" />
+  </g>
+  <g fill="#D9DFFF" fill-opacity="0.35">
+    <circle cx="120" cy="140" r="5" />
+    <circle cx="340" cy="260" r="6" />
+    <circle cx="300" cy="480" r="4" />
+    <circle cx="560" cy="200" r="5" />
+    <circle cx="760" cy="330" r="4" />
+    <circle cx="180" cy="640" r="4" />
+    <circle cx="1620" cy="760" r="6" />
+    <circle cx="1780" cy="880" r="5" />
+    <circle cx="1460" cy="900" r="4" />
+    <circle cx="1520" cy="1040" r="4" />
+    <circle cx="1860" cy="1020" r="4" />
+    <circle cx="1700" cy="120" r="5" />
+    <circle cx="1860" cy="220" r="4" />
+    <circle cx="1560" cy="60" r="4" />
+  </g>
+
+  <!-- subtle dot-grid texture for depth -->
+  <g fill="#ffffff" fill-opacity="0.06">
+    <pattern id="dots" width="42" height="42" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="2" fill="#ffffff" />
+    </pattern>
+    <rect width="1920" height="1080" fill="url(#dots)" />
+  </g>
+</svg>

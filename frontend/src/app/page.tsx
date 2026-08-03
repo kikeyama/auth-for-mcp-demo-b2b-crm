@@ -6,7 +6,10 @@ export default async function Home() {
   if (session) redirect('/dashboard');
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-900 to-brand-600">
+    <main
+      className="min-h-screen flex items-center justify-center bg-cover bg-center"
+      style={{ backgroundImage: "url('/login-bg.svg')" }}
+    >
       <div className="bg-white rounded-2xl shadow-2xl p-12 w-full max-w-md text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">NexusCRM</h1>
         <p className="text-gray-500 mb-8">B2B Sales & Customer Management</p>

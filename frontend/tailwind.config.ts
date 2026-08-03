@@ -9,13 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Okta brand blue palette
         brand: {
-          50:  '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          900: '#1e3a8a',
+          50:  '#D9DFFF',
+          100: '#D9DFFF',
+          500: '#9AB7F0',
+          600: '#0131FF',
+          700: '#001FA5',
+          900: '#00033E',
         },
       },
     },

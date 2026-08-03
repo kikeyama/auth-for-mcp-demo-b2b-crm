@@ -32,7 +32,7 @@ function NavLink({ href, label, icon: Icon, active, collapsed }: {
       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${collapsed ? 'justify-center' : ''} ${
         active
           ? 'bg-brand-600 text-white'
-          : 'text-brand-100 hover:bg-brand-700 hover:text-white'
+          : 'text-brand-100 hover:bg-brand-900 hover:text-white'
       }`}
     >
       <Icon className="w-4 h-4 flex-shrink-0" />
@@ -47,12 +47,12 @@ export function Sidebar() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <aside className={`min-h-screen bg-brand-900 text-white flex flex-col flex-shrink-0 transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
-      <div className={`flex items-center border-b border-brand-700 py-5 ${collapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
+    <aside className={`min-h-screen bg-brand-700 text-white flex flex-col flex-shrink-0 transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
+      <div className={`flex items-center border-b border-brand-900 py-5 ${collapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
         {!collapsed && <span className="text-xl font-bold tracking-tight">NexusCRM</span>}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="p-1.5 rounded-md text-brand-100 hover:bg-brand-700 hover:text-white transition-colors flex-shrink-0"
+          className="p-1.5 rounded-md text-brand-100 hover:bg-brand-900 hover:text-white transition-colors flex-shrink-0"
           title={collapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -64,7 +64,7 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="px-3">
-        <div className="border-t border-brand-700 mx-3 mb-3" />
+        <div className="border-t border-brand-900 mx-3 mb-3" />
         {!collapsed && (
           <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-brand-100/60">管理</p>
         )}
