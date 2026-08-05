@@ -103,12 +103,6 @@ function excerptJson(obj: Record<string, unknown> | null, keys: string[], highli
   );
 }
 
-// クリア後は「更新」を押すまでPRM/AS metadataを再取得しない。コンポーネント単位の
-// state/refだとページ遷移でアンマウント→再マウントされた際にリセットされてしまうため、
-// モジュールスコープに置いてクライアントサイド遷移をまたいで抑制状態を維持する
-// （ブラウザの完全リロードでは通常のモジュール再評価によりリセットされる）。
-let metadataSuppressed = false;
-
 export default function CimdRequestsPage() {
   const [latestRecord, setLatestRecord] = useState<Auth0LogRecord | null>(null);
   const [error, setError] = useState('');
@@ -141,15 +135,37 @@ export default function CimdRequestsPage() {
     return fetch('/api/mcp-auth-failures')
       .then((r) => r.json())
       .then((data: { records?: AuthFailureRecord[]; error?: string }) => {
-        if (data.error) { setAuthFailuresError(data.error); return; }
-        setLatestAuthFailure(data.records?.[0] ?? null);
+        if (data.error) { setAuthFailuresError(data.error); return null; }
+        const record = data.records?.[0] ?? null;
+        setLatestAuthFailure(record);
         setAuthFailuresError('');
+        return record;
       })
-      .catch(() => setAuthFailuresError('mcpサービスに接続できません'));
+      .catch(() => { setAuthFailuresError('mcpサービスに接続できません'); return null; });
   }, []);
 
-  const loadResourceMetadata = useCallback(() => {
-    return fetch('/api/mcp-resource-metadata')
+  // 実際の401レスポンスのWWW-Authenticateヘッダーから resource_metadata の値を取り出し、
+  // そのURLを実際にフェッチする。401の記録が無い（未接続・クリア後）場合は、まだ
+  // resource_metadata のURLを知り得ないので、PRM/AS metadata も取得しない。
+  const loadResourceMetadata = useCallback((authFailure: AuthFailureRecord | null) => {
+    if (!authFailure) {
+      setResourceMetadata(null);
+      setResourceMetadataUrl('');
+      setResourceMetadataError('');
+      setAuthServerMetadata(null);
+      setAuthServerMetadataUrl('');
+      setAuthServerMetadataError('');
+      return Promise.resolve();
+    }
+
+    const match = authFailure.wwwAuthenticateHeader.match(/resource_metadata="([^"]*)"/);
+    const url = match?.[1];
+    if (!url) {
+      setResourceMetadataError('WWW-Authenticateヘッダーに resource_metadata が見つかりません');
+      return Promise.resolve();
+    }
+
+    return fetch(`/api/mcp-resource-metadata?url=${encodeURIComponent(url)}`)
       .then((r) => r.json())
       .then((res: { url?: string; data?: ProtectedResourceMetadata; error?: string }) => {
         if (res.error) { setResourceMetadataError(res.error); return; }
@@ -174,10 +190,8 @@ export default function CimdRequestsPage() {
 
   const loadAll = useCallback(async () => {
     await loadLatestRecord();
-    await loadLatestAuthFailure();
-    if (!metadataSuppressed) {
-      await loadResourceMetadata();
-    }
+    const authFailure = await loadLatestAuthFailure();
+    await loadResourceMetadata(authFailure);
   }, [loadLatestRecord, loadLatestAuthFailure, loadResourceMetadata]);
 
   useEffect(() => {
@@ -186,11 +200,6 @@ export default function CimdRequestsPage() {
     const interval = setInterval(loadAll, 3000);
     return () => clearInterval(interval);
   }, [loadAll, autoRefresh]);
-
-  function handleRefresh() {
-    metadataSuppressed = false;
-    loadAll();
-  }
 
   function handleClearAll() {
     // id を付けずに DELETE すると、表示中の1件だけでなくバックエンドの履歴を全件削除する。
@@ -204,12 +213,12 @@ export default function CimdRequestsPage() {
     });
     setLatestRecord(null);
     setLatestAuthFailure(null);
+    // PRM/AS metadata は 401 の記録から得た resource_metadata URL に依存しているため、
+    // その記録を消せば自然と「未取得」状態に戻る（別途抑制フラグは不要）。
     setResourceMetadata(null);
     setResourceMetadataUrl('');
     setAuthServerMetadata(null);
     setAuthServerMetadataUrl('');
-    // PRM/AS metadata はライブデータで消せる履歴が無いため、次の「更新」まで再取得を止める
-    metadataSuppressed = true;
   }
 
   return (
@@ -225,7 +234,7 @@ export default function CimdRequestsPage() {
             <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
             自動更新
           </label>
-          <button onClick={handleRefresh} className="btn-secondary text-xs px-3 py-1.5 gap-1.5">
+          <button onClick={loadAll} className="btn-secondary text-xs px-3 py-1.5 gap-1.5">
             <RefreshCw className="w-3.5 h-3.5" /> 更新
           </button>
           <button onClick={handleClearAll} className="btn-secondary text-xs px-3 py-1.5 gap-1.5">
@@ -274,7 +283,7 @@ export default function CimdRequestsPage() {
           )}
           {!resourceMetadataError && (
             <pre className="text-xs font-mono bg-gray-50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
-              {resourceMetadata ? excerptJson(resourceMetadata, ['authorization_servers', 'scopes_supported'], ['authorization_servers']) : '読み込み中...'}
+              {resourceMetadata ? excerptJson(resourceMetadata, ['authorization_servers', 'scopes_supported'], ['authorization_servers']) : (latestAuthFailure ? '読み込み中...' : '401の記録が無いため未取得です')}
             </pre>
           )}
         </Section>
@@ -298,7 +307,7 @@ export default function CimdRequestsPage() {
                 authServerMetadata,
                 ['client_id_metadata_document_supported'],
                 authServerMetadata.client_id_metadata_document_supported === true ? ['client_id_metadata_document_supported'] : [],
-              ) : '読み込み中...'}
+              ) : (resourceMetadata ? '読み込み中...' : '401の記録が無いため未取得です')}
             </pre>
           )}
         </Section>
