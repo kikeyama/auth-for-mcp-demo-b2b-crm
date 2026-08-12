@@ -44,7 +44,10 @@ kubectl create secret generic nexuscrm-auth0-secret \
   --from-literal=auth0-secret="<32-char-random-string>" \
   --from-literal=mcp-client-id="<mcp-native-app-client-id>" \
   --from-literal=mcp-client-secret="<mcp-native-app-client-secret>" \
-  --from-literal=log-stream-webhook-token="<random-shared-secret>"
+  --from-literal=log-stream-webhook-token="<random-shared-secret>" \
+  --from-literal=event-stream-webhook-token="<random-shared-secret>" \
+  --from-literal=sync-client-id="<user-sync-m2m-app-client-id>" \
+  --from-literal=sync-client-secret="<user-sync-m2m-app-client-secret>"
 
 # ALB 設定（subnets・security-groups・certificate-arn・host）
 kubectl create secret generic nexuscrm-alb-secret \
@@ -56,7 +59,9 @@ kubectl create secret generic nexuscrm-alb-secret \
   --from-literal=mcp-host="nexuscrm-mcp.example.com" \
   --from-literal=mcp-extra-security-groups="<claude-connector-sg-id>" \
   --from-literal=auth0logs-host="nexuscrm-auth0logs.example.com" \
-  --from-literal=auth0logs-security-groups="<auth0-log-stream-sg-id>"
+  --from-literal=auth0logs-security-groups="<auth0-log-stream-sg-id>" \
+  --from-literal=auth0events-host="nexuscrm-auth0events.example.com" \
+  --from-literal=auth0events-security-groups="<auth0-event-stream-sg-id>"
 ```
 
 **nexuscrm-db-secret**
@@ -78,6 +83,9 @@ kubectl create secret generic nexuscrm-alb-secret \
 | `mcp-client-id` | MCP サーバー用 Native アプリの Client ID（OBO token exchange 用） | mcp |
 | `mcp-client-secret` | MCP サーバー用 Native アプリの Client Secret（OBO token exchange 用） | mcp |
 | `log-stream-webhook-token` | Auth0 Log Stream（Custom Webhook）の Authorization Token と照合する共有シークレット。ランダム文字列で任意生成 | auth0logs |
+| `event-stream-webhook-token` | Auth0 Event Stream（Webhook）の Authorization Token と照合する共有シークレット。Auth0 側は値に自動で `Bearer ` を前置して送信するため、ここには `Bearer ` を含めない生の値のみを設定する（付与は `services/auth0events/src/index.ts` 側で行う） | auth0events |
+| `sync-client-id` | 「NexusCRM User Sync」M2M アプリの Client ID。`user` では `TRUSTED_SYNC_CLIENT_ID`（`$(SYNC_CLIENT_ID)@clients` に整形）として、auth0events では `AUTH0_SYNC_CLIENT_ID` としてそのまま利用する | user, auth0events |
+| `sync-client-secret` | 上記 M2M アプリの Client Secret。`client_credentials` トークン取得に使用 | auth0events |
 
 **nexuscrm-alb-secret**
 
@@ -91,6 +99,8 @@ kubectl create secret generic nexuscrm-alb-secret \
 | `mcp-extra-security-groups` | mcp の ALB にのみ追加適用するセキュリティグループ ID（カンマ区切り可）。`security-groups` と結合されて `alb.ingress.kubernetes.io/security-groups` に反映される。例: Claude Connector の Outbound IP レンジ（`160.79.104.0/21`）を許可する専用 SG |
 | `auth0logs-host` | auth0logs の Ingress ホスト名 |
 | `auth0logs-security-groups` | auth0logs の ALB に適用するセキュリティグループ ID（カンマ区切り可）。`mcp-extra-security-groups` とは異なり `security-groups`（個人IPの共有ベース）とは**結合されず完全に差し替わる**（`ingress.securityGroupsSecretKey` 参照）。Auth0 の Log Stream 送信元 IP レンジ（`https://cdn.auth0.com/ip-ranges.json`、テナントのリージョン分）を port 443 で許可する専用 SG を指定する |
+| `auth0events-host` | auth0events の Ingress ホスト名 |
+| `auth0events-security-groups` | auth0events の ALB に適用するセキュリティグループ ID（カンマ区切り可）。auth0logs と同じく `security-groups`（個人IPの共有ベース）とは**結合されず完全に差し替わる**。Auth0 の Event Stream 送信元 IP レンジ（`https://cdn.auth0.com/ip-ranges.json`、テナントのリージョン分）を port 443 で許可する専用 SG を指定する |
 
 > `DATABASE_URL` は Secret に持たず、`$(DATABASE_HOST)` / `$(DATABASE_PASSWORD)` を K8s env 補完で組み合わせて Deployment 内で構築する。ユーザー名 `nexuscrm`・ポート `5432`・DB 名 `nexuscrm` は values.yaml の `env.DATABASE_URL` テンプレートに直接記載。
 
@@ -205,6 +215,29 @@ services:        # サービスごとの定義
 - `hook-delete-policy: before-hook-creation,hook-succeeded` により成功後は自動削除され、次回 upgrade 時に再実行される
 - `database/init.sql` は `IF NOT EXISTS` で冪等なので再実行しても安全
 
+### ⚠️ `CREATE TABLE IF NOT EXISTS` は既存テーブルへの列追加を反映しない
+
+`IF NOT EXISTS` が保証する冪等性は「テーブルが無ければ作る」だけであり、**テーブルが既に存在する場合はその中身（列定義）を一切見ずスキップする**。つまり `blocked` 列の追加のように、既存テーブルに列を追加する形の `init.sql` 変更は、`helm upgrade` の DB 初期化 Job を再実行するだけでは反映されない。
+
+このプロジェクトには migration ファイルが無いため（`CLAUDE.md` の「Database」セクション参照）、既存テーブルへのスキーマ変更は、ローカル・k8s いずれの環境でも `init.sql` の更新に加えて **`ALTER TABLE` を対象DBへ手動で実行する**必要がある。
+
+k8s環境の場合、DB初期化Jobと同じ接続情報（`dbInit.secretName` で指定した Secret の `host`/`password`、DB名 `nexuscrm`、ユーザー名 `nexuscrm`）を使い、一時的な Pod から `psql` で直接実行する。この一時 Pod にも DB 初期化 Job と同じ `role: db-job` ラベル（Security Groups for Pods による DB への inbound 許可に必要。「Pod ラベルと CNI Security Group」参照）を付ける必要がある。`host`/`password` はコマンドラインに直接書かず、既存の Secret から取得して埋め込む：
+
+```bash
+DB_HOST=$(kubectl get secret nexuscrm-db-secret -n nexuscrm -o jsonpath='{.data.host}' | base64 -d)
+DB_PASSWORD=$(kubectl get secret nexuscrm-db-secret -n nexuscrm -o jsonpath='{.data.password}' | base64 -d)
+
+kubectl run psql-tmp --rm -it --restart=Never \
+  --namespace nexuscrm \
+  --labels="role=db-job" \
+  --image=postgres:16-alpine \
+  --env="PGPASSWORD=${DB_PASSWORD}" \
+  -- psql "host=${DB_HOST} port=5432 dbname=nexuscrm user=nexuscrm sslmode=require" \
+  -c "ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked BOOLEAN NOT NULL DEFAULT false;"
+```
+
+`--rm`により、psqlの実行が終わるとPodは自動的に削除される。
+
 ### ⚠️ 初回 install 時の注意
 
 DB 初期化 Job は `pre-install` hook として**通常リソースより先に実行**されます。参照する Secret は Helm 管理外のため、**デプロイ前の `kubectl create secret` が必須**です（「Secret の事前作成」参照）。
@@ -219,6 +252,7 @@ DB 初期化 Job は `pre-install` hook として**通常リソースより先�
 | frontend | - | - | あり (`nexuscrm.a0japan.solutions`) |
 | mcp | - | - | あり (`nexuscrm-mcp.a0japan.solutions`) |
 | auth0logs | microservices | `"true"` | あり (`nexuscrm-auth0logs.a0japan.solutions`)。Auth0 Log Stream の Webhook 受信専用。`role: microservices`（`microservices-sg-policy`、frontend/mcp からの inbound）と `public: "true"`（`public-sg-policy`、ALB からの inbound）の2つのラベルを持ち、両方の SecurityGroupPolicy が同時に適用される |
+| auth0events | microservices | `"true"` | あり (`nexuscrm-auth0events.a0japan.solutions`)。Auth0 Event Streams の Webhook 受信専用、`user` サービス経由で `users` テーブルを非同期同期。ラベル構成は auth0logs と同一パターン |
 
 フロントエンドのヘルスチェックパスは `/api/healthz/live` / `/api/healthz/ready`（他は `/healthz/live` / `/healthz/ready`）。
 
@@ -230,9 +264,9 @@ EKS の Security Groups for Pods（CNI）により、Pod ラベルに基づい�
 |---|---|---|
 | `app` | `frontend` | frontend Pod |
 | `app` | `mcp` | mcp Pod |
-| `role` | `microservices` | マイクロサービス Pod（account / opportunity / contact / activity / user / auth0logs） |
+| `role` | `microservices` | マイクロサービス Pod（account / opportunity / contact / activity / user / auth0logs / auth0events） |
 | `role` | `db-job` | DB 初期化 Job Pod |
-| `public` | `"true"` | ALB からの inbound が必要な Pod（auth0logs）。`public-sg-policy` が対象 |
+| `public` | `"true"` | ALB からの inbound が必要な Pod（auth0logs / auth0events）。`public-sg-policy` が対象 |
 
 `app` ラベルは `values.yaml` の `services:` マップのキー名から自動生成されます。`frontend` / `mcp` のサービス名を変更する場合、または `role` 値を変更する場合は、対応する SecurityGroupPolicy の `podSelector` も合わせて更新してください。
 

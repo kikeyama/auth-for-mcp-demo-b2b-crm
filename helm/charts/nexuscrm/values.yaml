@@ -116,7 +116,7 @@ services:
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
 
   user:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-user:e2395c4
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-user:d83a905
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -234,7 +234,7 @@ services:
       PORT: "3000"
 
   auth0events:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0events:latest
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0events:d83a905
     role: microservices        # microservices-sg-policy（frontend/mcp/user からの inbound）を適用
     public: true               # public-sg-policy（ALB からの inbound）も併用適用。auth0logsと同じ隔離パターン
     ingress:
