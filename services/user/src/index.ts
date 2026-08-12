@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
-import { usersRouter } from './routes/users';
+import { usersRouter, usersProvisionalRouter } from './routes/users';
 import { jwtErrorHandler } from './middleware/auth';
 import { db } from './db';
 
@@ -21,6 +21,8 @@ app.get('/healthz/ready', async (_req, res): Promise<void> => {
     res.status(503).json({ status: 'unavailable' });
   }
 });
+// /users/provisional は usersRouter の requireOrg より前に評価させる必要があるため先に登録する
+app.use('/users/provisional', usersProvisionalRouter);
 app.use('/users', usersRouter);
 
 app.use(jwtErrorHandler);

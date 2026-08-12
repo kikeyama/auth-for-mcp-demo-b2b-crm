@@ -104,3 +104,27 @@ const backHref = activity.opportunity_id
   ? `/opportunities/${activity.opportunity_id}`
   : '/activities';
 ```
+
+---
+
+## [auth0events] 削除済みユーザーと同じuser_idでの再作成時、org_idが古いままになる
+
+**日付**: 2026-08-12
+**優先度**: 低（レアケース。手動運用時にのみ発生し得る）
+
+### 背景
+
+`services/auth0events`のEvent Streams同期は、`org_id`を`services/user`の`POST /users/provisional`（`user.created`用）経由でしか書かない設計で、この経路は初回作成時の`org_id`（`UNASSIGNED_ORG_ID`という予約値）を`ON CONFLICT DO UPDATE`のSET対象に含めていない（既に実org割当済みの行を誤って未割当に戻さないための意図的な設計。詳細はCLAUDE.mdの「Auth0 Event Streams によるユーザー同期」セクション参照）。
+
+### 現象
+
+同じ`user_id`（例: 同じ外部IdPのユーザーID）が一度`user.deleted`で削除され、その後`user.created`で再作成された場合:
+
+- `blocked`は新しいイベントの値で正しくリセットされる（`POST /users/provisional`の動的フィールドリストに`blocked`を含めているため）
+- しかし`org_id`は削除前の値のまま変化しない（このルートが`org_id`を一切更新しないため）
+
+再作成後に**同じ**Organizationへ`organization.member.added`で再度追加される場合は実害が無い（既に正しい`org_id`が入っているため`PATCH /:id/org`の0件更新は無害なno-op）。しかし**別の**Organizationへ追加される場合、`PATCH /:id/org`のガード（`WHERE org_id = UNASSIGNED_ORG_ID`）が一致せずorg付け替えが反映されない。
+
+### 対応方針（未実施）
+
+CLAUDE.mdに既存の記載がある「Org Aから削除→Org Bに再招待」で発生する既知の制限（1ユーザー1org・membershipテーブル不在のスキーマに起因）と本質的に同じ制限であり、同じ理由で対応を見送っている。真に対応するには`users`テーブルをmembershipテーブルに分離する必要があり、このデモの現状の要件では過剰。

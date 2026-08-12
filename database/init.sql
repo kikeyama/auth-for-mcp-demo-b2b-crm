@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     email           TEXT,
     email_verified  BOOLEAN      NOT NULL DEFAULT false,
     picture         TEXT,
+    blocked         BOOLEAN      NOT NULL DEFAULT false,
     last_login_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()

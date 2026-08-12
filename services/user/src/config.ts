@@ -10,4 +10,6 @@ export const config = {
     audience: process.env.AUTH0_AUDIENCE ?? '',
   },
   allowedOrigins: (process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000').split(','),
+  // auth0events からの同期リクエストを許可するM2Mクライアントのsubクレーム（client_id + '@clients'）
+  trustedSyncClientId: process.env.TRUSTED_SYNC_CLIENT_ID ?? '',
 };

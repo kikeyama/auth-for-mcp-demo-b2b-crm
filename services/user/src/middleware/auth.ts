@@ -22,6 +22,29 @@ export const getTokenClaims = (req: Request) => ({
   orgId:  req.auth?.payload?.org_id as string,
 });
 
+// auth0events (Event Streams によるユーザー同期) からのM2Mトークンかどうかを判定する。
+// client_credentialsトークンは gty: "client-credentials"、sub にクライアントID（...@clients）を持つ。
+export const isTrustedSyncClient = (req: Request): boolean =>
+  req.auth?.payload?.gty === 'client-credentials'
+  && !!config.trustedSyncClientId
+  && req.auth?.payload?.sub === config.trustedSyncClientId;
+
+export const requireTrustedSyncClient = (req: Request, res: Response, next: NextFunction): void => {
+  if (!isTrustedSyncClient(req)) {
+    res.status(403).json({ error: 'Trusted sync client required' });
+    return;
+  }
+  next();
+};
+
+// user.updated/user.deleted はイベントペイロードにorg_idが含まれないため、
+// 信頼済み同期クライアントに限り、org無しトークンでの呼び出しを許可する
+// （GET/PATCH /:id のみ。他のルートは通常のrequireOrgのまま）。
+export const requireOrgOrTrustedSyncClient = (req: Request, res: Response, next: NextFunction): void => {
+  if (isTrustedSyncClient(req)) { next(); return; }
+  requireOrg(req, res, next);
+};
+
 export const requireReadUsers   = requiredScopes('read:users');
 export const requireCreateUsers = requiredScopes('create:users');
 export const requireUpdateUsers = requiredScopes('update:users');

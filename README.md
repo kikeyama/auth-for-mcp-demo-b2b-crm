@@ -13,6 +13,8 @@ Auth0 Organizations を使った B2B SaaS CRM のデモアプリケーション�
 | activity | 3004 | 活動履歴マイクロサービス |
 | user | 3005 | ユーザー同期マイクロサービス |
 | mcp | 3006 | AI エージェント向け MCP サーバー（詳細: [services/mcp/README.md](services/mcp/README.md)） |
+| auth0logs | 3007 | Auth0 Log Stream（Custom Webhook）受信、CIMD可視化デモ用 |
+| auth0events | 3008 | Auth0 Event Streams（Webhook）受信、`user`テーブルの非同期同期用 |
 | postgres | 5432 | PostgreSQL 16 |
 
 ---
@@ -114,6 +116,58 @@ Auth0 ダッシュボード → **Organizations > Create Organization** でテ�
 
 MCP サービス (`services/mcp/.env`) の設定については [services/mcp/README.md](services/mcp/README.md) を参照してください。
 
+### 5. Auth0 Event Streams によるユーザー同期（`auth0events`）
+
+Okta（SCIM）などの外部IdPからAuth0にプロビジョニングされたユーザー・Organizationメンバーシップの変更を、Auth0 Management APIを使わずリアルタイムに`user`サービスへ反映する仕組みです。背景・設計の詳細は[CLAUDE.mdの該当セクション](CLAUDE.md)を参照してください。
+
+#### M2Mアプリケーションの作成
+
+Auth0 ダッシュボード → **Applications > Applications > Create Application** → **Machine to Machine Applications**
+
+| 項目 | 値 |
+|---|---|
+| Name | NexusCRM User Sync |
+
+作成後、**APIs** タブで **NexusCRM API**（`https://api.nexuscrm.com`）を選択し、以下のスコープを認可します。
+
+| Scope |
+|---|
+| `read:users` |
+| `create:users` |
+| `update:users` |
+
+このM2Mアプリを、ユーザーが所属する各Organizationの **Machine to Machine Applications** タブでも認可してください（`organization.member.added`/`organization.member.deleted`処理時のOrg-scopedトークン取得に必要）。
+
+#### Event Stream（Webhook）の作成
+
+Auth0 ダッシュボード → **Actions > Event Streams > Create Event Stream** → **Webhook**
+
+| 項目 | 値 |
+|---|---|
+| Endpoint URL | `http://localhost:3008/webhooks/auth0-events`（本番は`auth0events`サービスの公開URL） |
+| Authorization | 任意の共有シークレット（Auth0側がこの値に自動で`Bearer `を前置して送信する。`EVENT_STREAM_TOKEN`には`Bearer `を含めない生の値を設定する） |
+| Subscribe to events | `user.created`, `user.updated`, `user.deleted`, `organization.member.added`, `organization.member.deleted` |
+
+#### 環境変数への反映
+
+`services/user/.env` に追加：
+
+| 変数 | 値 |
+|---|---|
+| `TRUSTED_SYNC_CLIENT_ID` | 上記M2MアプリのClient ID + `@clients`（例: `abc123@clients`） |
+
+`services/auth0events/.env`（`services/auth0events/.env.example`をコピー）に設定：
+
+| 変数 | 値 |
+|---|---|
+| `PORT` | `3008` |
+| `EVENT_STREAM_TOKEN` | Event Streamの Authorization に設定した共有シークレットと同じ値（`Bearer `は含めない） |
+| `AUTH0_DOMAIN` | `<your-domain>.auth0.com`（`https://` は不要） |
+| `AUTH0_AUDIENCE` | `https://api.nexuscrm.com`（`user`サービスの`AUTH0_AUDIENCE`と同じ値） |
+| `AUTH0_SYNC_CLIENT_ID` | 上記M2MアプリのClient ID |
+| `AUTH0_SYNC_CLIENT_SECRET` | 上記M2MアプリのClient Secret |
+| `USER_SERVICE_URL` | `http://localhost:3005` |
+
 ---
 
 ## ローカル開発（npm run dev）
@@ -178,6 +232,8 @@ cp services/contact/.env.example services/contact/.env
 cp services/activity/.env.example services/activity/.env
 cp services/user/.env.example services/user/.env
 cp services/mcp/.env.example services/mcp/.env
+cp services/auth0logs/.env.example services/auth0logs/.env
+cp services/auth0events/.env.example services/auth0events/.env
 ```
 
 各 `.env` の `YOUR_AUTH0_DOMAIN` などを実際の Auth0 テナント情報に書き換えてください。
@@ -193,6 +249,8 @@ npm install --prefix services/contact
 npm install --prefix services/activity
 npm install --prefix services/user
 npm install --prefix services/mcp
+npm install --prefix services/auth0logs
+npm install --prefix services/auth0events
 ```
 
 ### 5. 起動
