@@ -28,7 +28,7 @@ dbInit:
 #             secretEnv より後に定義するため、$(SECRET_VAR) 補完で secretEnv の値を参照できる。
 services:
   account:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:e2395c4
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:0cb0c4c
     role: microservices
     secretEnv:
       DATABASE_HOST:

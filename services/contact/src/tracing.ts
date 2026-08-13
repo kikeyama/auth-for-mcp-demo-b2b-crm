@@ -14,7 +14,14 @@ if (endpoint) {
       [ATTR_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME ?? 'contact',
     }),
     traceExporter: new OTLPTraceExporter({ url: `${endpoint}/v1/traces` }),
-    instrumentations: [getNodeAutoInstrumentations()],
+    instrumentations: [
+      getNodeAutoInstrumentations({
+        // liveness/readiness probe はトレースしない
+        '@opentelemetry/instrumentation-http': {
+          ignoreIncomingRequestHook: (req) => req.url?.startsWith('/healthz') ?? false,
+        },
+      }),
+    ],
   });
 
   sdk.start();
