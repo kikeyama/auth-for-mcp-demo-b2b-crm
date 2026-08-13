@@ -112,6 +112,16 @@ Every service uses `express-oauth2-jwt-bearer` to validate tokens. `src/middlewa
 
 All routes apply `router.use(checkJwt, requireOrg)` at the top.
 
+### OpenTelemetry Tracing
+
+`account`, `opportunity`, `contact`, `activity`, `user`, and `mcp` each have a `src/tracing.ts` that is imported as the *very first* line of `src/index.ts` (before `express`, `pg`, etc.) — auto-instrumentation (`@opentelemetry/auto-instrumentations-node`, which covers `http`/`express`/`pg` in one package) patches `require()` internals, so it must register before the modules it instruments are first required. Since these services compile to CommonJS, `import` order in source matches `require()` execution order, so this ordering guarantee holds without needing a separate `node --require` preload step.
+
+`OTEL_EXPORTER_OTLP_ENDPOINT` gates everything: `tracing.ts` skips `NodeSDK.start()` entirely when it's unset, so local dev (no Collector running) produces zero tracing-related output — no crashed process, no export-retry log spam. This was verified by starting `account` locally with the endpoint unset (no output) and set to an unreachable `http://localhost:4318` (still no output, even after generating a request and waiting past the batch-export interval).
+
+Each service sends to the same OpenTelemetry Collector (`observability` namespace, already deployed outside this repo — its config isn't part of this codebase) via OTLP/HTTP, **not** OTLP/gRPC despite the Collector's `otlp` receiver listening on both `grpc:4317` and `http:4318`: the Collector's k8s Service only exposes `4318` (`otlp-http`) and `13133` (`health`) — `4317` isn't published, and it's fronted by an ALB (`type: NodePort`), which would need extra target-group configuration to carry gRPC (HTTP/2). Using the already-exposed HTTP port avoids touching the Collector's Service/ALB setup at all. Because of this, the exporter is `@opentelemetry/exporter-trace-otlp-http`, and `tracing.ts` appends `/v1/traces` to `OTEL_EXPORTER_OTLP_ENDPOINT` itself — this package does not auto-append the path the way env-var-only auto-configuration would.
+
+Deliberately excluded from this pass: `auth0logs` and `auth0events` (webhook receivers, not part of the core request-tracing path being instrumented first), and metrics/logs signals (only traces were requested — the Collector config's `metrics` pipeline, e.g. `hostmetrics`/hostmetrics scrapers, is unrelated to what these services emit).
+
 ### MCP server (`services/mcp`)
 
 Built with the official `@modelcontextprotocol/sdk` (^1.29.0) + Express — **not** a 3rd-party wrapper. (An earlier version used `fastmcp` ^4.3.2; migrated away after finding two OAuth implementation bugs in `fastmcp`'s dependency `mcp-proxy` — see `docs/known-issues.md`.) Exposes 18 CRM tools (CRUD for accounts, opportunities, contacts, activities + `list_opportunity_history` + `get_current_user`) at `/mcp` (Streamable HTTP transport).

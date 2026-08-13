@@ -273,3 +273,18 @@ EKS の Security Groups for Pods（CNI）により、Pod ラベルに基づい�
 **1つの Pod に複数の SecurityGroupPolicy が一致する場合の挙動**: auth0logs は `role: microservices` と `public: true` の両方のラベルを持ち、`microservices-sg-policy` と `public-sg-policy` の両方に一致する。AWS公式ドキュメントはこの挙動を明記していないが、本プロジェクトでの検証では**両方のポリシーの Security Group が加算適用される**（frontend/mcp からの inbound と ALB からの inbound の両方が同時に有効になる）。将来、新たに ALB を持つサービスを追加する場合も、`values.yaml` に `public: true` を設定するだけで `public-sg-policy` を再利用できる。
 
 `ALLOWED_ORIGINS` は各マイクロサービスの CORS ミドルウェアで使用し、許可するオリジン（カンマ区切り）を指定します。MCP サービスへのリクエスト元はブラウザではなく AI エージェントのため、MCP サービスには CORS 設定がなく `ALLOWED_ORIGINS` は不要です。
+
+## OpenTelemetry Tracing
+
+`account` / `opportunity` / `contact` / `activity` / `user` / `mcp` の6サービスに OpenTelemetry によるトレーシングを導入済み（`auth0logs` / `auth0events` は対象外）。各サービスの `env` に以下を設定している。
+
+| 変数 | 値 |
+|---|---|
+| `OTEL_SERVICE_NAME` | サービスごとに異なる値（`account` など） |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc.cluster.local:4318`（6サービス共通） |
+
+`global.env` という共通env機構は存在しない（`env`/`secretEnv` は各サービスが完全に個別定義する設計）ため、`OTEL_EXPORTER_OTLP_ENDPOINT` も他の値と同様に6サービス全てに重複して記載している。
+
+**ポートが4318（OTLP/HTTP）である理由**: Collector自体は `otlp` receiver で grpc:4317 と http:4318 の両方を開いているが、`observability` namespace の実際の k8s Service（`otel-collector`、`type: NodePort`、ALB のターゲット）は `otlp-http`（4318）と `health`（13133）のみを公開しており、4317 は公開されていない。ALB 経由で gRPC（HTTP/2）を通すにはターゲットグループの追加設定が必要になるため、Service 側の変更が不要な OTLP/HTTP（4318）を採用した。
+
+各サービスの `src/tracing.ts` は `OTEL_EXPORTER_OTLP_ENDPOINT` が未設定の場合は何もしない（ローカル開発で Collector が無い環境でも、失敗するエクスポートをリトライしてログを汚すことはない）。詳細な設計判断は `CLAUDE.md` を参照。

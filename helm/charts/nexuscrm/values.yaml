@@ -48,6 +48,8 @@ services:
       ALLOWED_ORIGINS: "http://frontend:3000"
       AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+      OTEL_SERVICE_NAME: "account"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   opportunity:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-opportunity:e2395c4
@@ -70,6 +72,8 @@ services:
       ALLOWED_ORIGINS: "http://frontend:3000"
       AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+      OTEL_SERVICE_NAME: "opportunity"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   contact:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-contact:e2395c4
@@ -92,6 +96,8 @@ services:
       ALLOWED_ORIGINS: "http://frontend:3000"
       AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+      OTEL_SERVICE_NAME: "contact"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   activity:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-activity:e2395c4
@@ -114,6 +120,8 @@ services:
       ALLOWED_ORIGINS: "http://frontend:3000"
       AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
+      OTEL_SERVICE_NAME: "activity"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   user:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-user:d83a905
@@ -142,6 +150,8 @@ services:
       AUTH0_ISSUER_BASE_URL: "https://$(AUTH0_DOMAIN)"
       DATABASE_URL: "postgresql://nexuscrm:$(DATABASE_PASSWORD)@$(DATABASE_HOST):5432/nexuscrm?sslmode=require&uselibpqcompat=true"
       TRUSTED_SYNC_CLIENT_ID: "$(SYNC_CLIENT_ID)@clients"
+      OTEL_SERVICE_NAME: "user"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   frontend:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:8e7a232
@@ -216,6 +226,8 @@ services:
       CONTACTS_SERVICE_URL: "http://contact:3000"
       ACTIVITIES_SERVICE_URL: "http://activity:3000"
       USERS_SERVICE_URL: "http://user:3000"
+      OTEL_SERVICE_NAME: "mcp"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   auth0logs:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0logs:7365a5c

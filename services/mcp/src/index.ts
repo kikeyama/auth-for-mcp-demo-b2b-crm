@@ -1,3 +1,4 @@
+import './tracing';
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
