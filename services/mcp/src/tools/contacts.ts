@@ -42,7 +42,6 @@ export const contactTools: ToolDef[] = [
       phone:        z.string().optional().describe('電話番号'),
       title:        z.string().optional().describe('役職'),
       department:   z.string().optional().describe('部署'),
-      description:  z.string().optional().describe('備考'),
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, session) => {
@@ -61,7 +60,6 @@ export const contactTools: ToolDef[] = [
       phone:        z.string().optional().describe('電話番号'),
       title:        z.string().optional().describe('役職'),
       department:   z.string().optional().describe('部署'),
-      description:  z.string().optional().describe('備考'),
     },
     annotations: { readOnlyHint: false, destructiveHint: false },
     execute: async (args, session) => {

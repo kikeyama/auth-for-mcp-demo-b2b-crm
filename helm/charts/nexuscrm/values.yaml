@@ -28,7 +28,7 @@ dbInit:
 #             secretEnv より後に定義するため、$(SECRET_VAR) 補完で secretEnv の値を参照できる。
 services:
   account:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:0cb0c4c
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:f06df8f
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -52,7 +52,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   opportunity:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-opportunity:e2395c4
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-opportunity:f06df8f
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -76,7 +76,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   contact:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-contact:e2395c4
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-contact:f06df8f
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -100,7 +100,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   activity:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-activity:e2395c4
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-activity:f06df8f
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -124,7 +124,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   user:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-user:d83a905
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-user:f06df8f
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -192,7 +192,7 @@ services:
       AUTH0LOGS_SERVICE_URL: "http://auth0logs:3000"
 
   mcp:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:7365a5c
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:f06df8f
     ingress:
       enabled: true
       hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名
