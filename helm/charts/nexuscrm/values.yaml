@@ -190,9 +190,11 @@ services:
       USER_SERVICE_URL: "http://user:3000"
       MCP_SERVICE_URL: "http://mcp:3000"
       AUTH0LOGS_SERVICE_URL: "http://auth0logs:3000"
+      OTEL_SERVICE_NAME: "frontend"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   mcp:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:f06df8f
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:d86bb50
     ingress:
       enabled: true
       hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名
@@ -244,6 +246,8 @@ services:
         key: log-stream-webhook-token
     env:
       PORT: "3000"
+      OTEL_SERVICE_NAME: "auth0logs"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   auth0events:
     image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0events:d83a905
@@ -273,3 +277,5 @@ services:
     env:
       PORT: "3000"
       USER_SERVICE_URL: "http://user:3000"
+      OTEL_SERVICE_NAME: "auth0events"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"

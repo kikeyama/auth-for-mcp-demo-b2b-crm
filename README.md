@@ -19,7 +19,7 @@ Auth0 Organizations を使った B2B SaaS CRM のデモアプリケーション�
 
 ### OpenTelemetry Tracing
 
-`account`/`opportunity`/`contact`/`activity`/`user`/`mcp`の6サービスにOpenTelemetryによるトレーシング（Node.js/Express/PostgreSQLの自動計装）を導入済み。各サービスの`OTEL_EXPORTER_OTLP_ENDPOINT`（`.env.example`参照）が未設定の場合はトレーシングが自動的に無効化されるため、**ローカル開発では特に設定不要**。k8s環境でのCollectorエンドポイント設定・設計判断の背景は[helm/README.md](helm/README.md)の「OpenTelemetry Tracing」セクションおよび`CLAUDE.md`を参照。
+`account`/`opportunity`/`contact`/`activity`/`user`/`mcp`/`auth0logs`/`auth0events`/`frontend`の全9サービスにOpenTelemetryによるトレーシング（Node.js/Express/PostgreSQLの自動計装）を導入済み。各サービスの`OTEL_EXPORTER_OTLP_ENDPOINT`（`.env.example`/`.env.local.example`参照）が未設定の場合はトレーシングが自動的に無効化されるため、**ローカル開発では特に設定不要**。k8s環境でのCollectorエンドポイント設定・設計判断の背景は[helm/README.md](helm/README.md)の「OpenTelemetry Tracing」セクションおよび`CLAUDE.md`を参照。
 
 ---
 

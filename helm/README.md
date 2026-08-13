@@ -276,15 +276,17 @@ EKS の Security Groups for Pods（CNI）により、Pod ラベルに基づい�
 
 ## OpenTelemetry Tracing
 
-`account` / `opportunity` / `contact` / `activity` / `user` / `mcp` の6サービスに OpenTelemetry によるトレーシングを導入済み（`auth0logs` / `auth0events` は対象外）。各サービスの `env` に以下を設定している。
+`account` / `opportunity` / `contact` / `activity` / `user` / `mcp` / `auth0logs` / `auth0events` / `frontend` の全9サービスに OpenTelemetry によるトレーシングを導入済み。各サービスの `env` に以下を設定している。
 
 | 変数 | 値 |
 |---|---|
 | `OTEL_SERVICE_NAME` | サービスごとに異なる値（`account` など） |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc.cluster.local:4318`（6サービス共通） |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc.cluster.local:4318`（9サービス共通） |
 
-`global.env` という共通env機構は存在しない（`env`/`secretEnv` は各サービスが完全に個別定義する設計）ため、`OTEL_EXPORTER_OTLP_ENDPOINT` も他の値と同様に6サービス全てに重複して記載している。
+`global.env` という共通env機構は存在しない（`env`/`secretEnv` は各サービスが完全に個別定義する設計）ため、`OTEL_EXPORTER_OTLP_ENDPOINT` も他の値と同様に9サービス全てに重複して記載している。
+
+`frontend`（Next.js）は他8サービスと構成が異なるため、`src/tracing.ts`ではなく`frontend/src/instrumentation.ts`（Next.js公式の`register()`フック）で`@vercel/otel`の`registerOTel()`を呼ぶ形になっている。詳細は`CLAUDE.md`を参照。
 
 **ポートが4318（OTLP/HTTP）である理由**: Collector自体は `otlp` receiver で grpc:4317 と http:4318 の両方を開いているが、`observability` namespace の実際の k8s Service（`otel-collector`、`type: NodePort`、ALB のターゲット）は `otlp-http`（4318）と `health`（13133）のみを公開しており、4317 は公開されていない。ALB 経由で gRPC（HTTP/2）を通すにはターゲットグループの追加設定が必要になるため、Service 側の変更が不要な OTLP/HTTP（4318）を採用した。
 
-各サービスの `src/tracing.ts` は `OTEL_EXPORTER_OTLP_ENDPOINT` が未設定の場合は何もしない（ローカル開発で Collector が無い環境でも、失敗するエクスポートをリトライしてログを汚すことはない）。詳細な設計判断は `CLAUDE.md` を参照。
+各サービスの `src/tracing.ts`（`frontend`は`src/instrumentation.ts`）は `OTEL_EXPORTER_OTLP_ENDPOINT` が未設定の場合は何もしない（ローカル開発で Collector が無い環境でも、失敗するエクスポートをリトライしてログを汚すことはない）。詳細な設計判断は `CLAUDE.md` を参照。
