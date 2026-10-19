@@ -154,7 +154,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   frontend:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:8e7a232
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:c1e990d
     healthcheck:
       live: /api/healthz/live
       ready: /api/healthz/ready
@@ -180,9 +180,30 @@ services:
       FRONTEND_HOST:
         secretName: nexuscrm-alb-secret
         key: frontend-host
+      # デモ用: My Organization APIのドメインDNS検証をバイパスし、Management API経由で
+      # 強制的にverified扱いにするための専用M2M Applicationの資格情報。
+      AUTH0_MGMT_CLIENT_ID:
+        secretName: nexuscrm-auth0-secret
+        key: mgmt-client-id
+      AUTH0_MGMT_CLIENT_SECRET:
+        secretName: nexuscrm-auth0-secret
+        key: mgmt-client-secret
+      # セッション本体の保存先（マネージドRedis、例: ElastiCache）。認証情報を含む接続文字列
+      # のためsecretEnvで扱う。未設定時は既定のCookieベースセッションにフォールバックする
+      # （frontend/src/lib/auth0.ts、CLAUDE.md「Role-based menu and route gating」直後の
+      # セッションストア節参照）。
+      REDIS_URL:
+        secretName: nexuscrm-redis-secret
+        key: redis-url
     env:
       APP_BASE_URL: "https://$(FRONTEND_HOST)"
       AUTH0_SCOPE: "openid profile email offline_access read:accounts create:accounts update:accounts delete:accounts read:opportunities create:opportunities update:opportunities delete:opportunities read:contacts create:contacts update:contacts delete:contacts read:activities create:activities update:activities delete:activities read:users create:users update:users delete:users"
+      # My Organization API（Early Access）用のscope。/my-org/*へのプロキシ経由リクエストでのみ使われる。
+      AUTH0_MY_ORG_SCOPE: "read:my_org:identity_providers create:my_org:identity_providers update:my_org:identity_providers delete:my_org:identity_providers read:my_org:domains create:my_org:domains update:my_org:domains delete:my_org:domains create:my_org:identity_providers_domains delete:my_org:identity_providers_domains read:my_org:identity_providers_provisioning create:my_org:identity_providers_provisioning update:my_org:identity_providers_provisioning delete:my_org:identity_providers_provisioning read:my_org:identity_providers_scim_tokens create:my_org:identity_providers_scim_tokens delete:my_org:identity_providers_scim_tokens read:my_org:members read:my_org:member_roles create:my_org:member_roles delete:my_org:member_roles delete:my_org:memberships read:my_org:member_invitations create:my_org:member_invitations delete:my_org:member_invitations"
+      # ID Tokenのロールカスタムクレームのnamespace（パス部分の/rolesはアプリ側で固定）。
+      # Auth0側Post-Login ActionでID Tokenにセットするクレームのnamespaceと一致させる
+      # （CLAUDE.md「ロールベースのメニュー・URL制御」参照）。
+      AUTH0_ROLES_NAMESPACE: "https://nexuscrm.com"
       ACCOUNT_SERVICE_URL: "http://account:3000"
       OPPORTUNITY_SERVICE_URL: "http://opportunity:3000"
       CONTACT_SERVICE_URL: "http://contact:3000"
@@ -232,7 +253,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   auth0logs:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0logs:7365a5c
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0logs:c1e990d
     role: microservices        # microservices-sg-policy（frontend/mcp からの inbound）を適用
     public: true               # public-sg-policy（ALB からの inbound）も併用適用。1つの Pod に複数の SecurityGroupPolicy が一致する場合、
                                 # 各ポリシーの SG は加算される（本番検証済み。ドキュメントに明記は無いが実際の挙動）
@@ -250,7 +271,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   auth0events:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0events:d83a905
+    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0events:c1e990d
     role: microservices        # microservices-sg-policy（frontend/mcp/user からの inbound）を適用
     public: true               # public-sg-policy（ALB からの inbound）も併用適用。auth0logsと同じ隔離パターン
     ingress:

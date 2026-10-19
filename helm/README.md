@@ -47,7 +47,14 @@ kubectl create secret generic nexuscrm-auth0-secret \
   --from-literal=log-stream-webhook-token="<random-shared-secret>" \
   --from-literal=event-stream-webhook-token="<random-shared-secret>" \
   --from-literal=sync-client-id="<user-sync-m2m-app-client-id>" \
-  --from-literal=sync-client-secret="<user-sync-m2m-app-client-secret>"
+  --from-literal=sync-client-secret="<user-sync-m2m-app-client-secret>" \
+  --from-literal=mgmt-client-id="<management-api-m2m-app-client-id>" \
+  --from-literal=mgmt-client-secret="<management-api-m2m-app-client-secret>"
+
+# Redis（セッションストア。マネージドRedis、例: ElastiCacheのエンドポイントを想定）
+kubectl create secret generic nexuscrm-redis-secret \
+  --namespace nexuscrm \
+  --from-literal=redis-url="redis://<elasticache-endpoint>:6379"
 
 # ALB 設定（subnets・security-groups・certificate-arn・host）
 kubectl create secret generic nexuscrm-alb-secret \
@@ -86,6 +93,16 @@ kubectl create secret generic nexuscrm-alb-secret \
 | `event-stream-webhook-token` | Auth0 Event Stream（Webhook）の Authorization Token と照合する共有シークレット。Auth0 側は値に自動で `Bearer ` を前置して送信するため、ここには `Bearer ` を含めない生の値のみを設定する（付与は `services/auth0events/src/index.ts` 側で行う） | auth0events |
 | `sync-client-id` | 「NexusCRM User Sync」M2M アプリの Client ID。`user` では `TRUSTED_SYNC_CLIENT_ID`（`$(SYNC_CLIENT_ID)@clients` に整形）として、auth0events では `AUTH0_SYNC_CLIENT_ID` としてそのまま利用する | user, auth0events |
 | `sync-client-secret` | 上記 M2M アプリの Client Secret。`client_credentials` トークン取得に使用 | auth0events |
+| `mgmt-client-id` | Management API（`/api/v2/*`）専用 M2M アプリの Client ID。`frontend/src/lib/managementApiToken.ts`経由で使用（CLAUDE.md「My Organization API」セクション参照）。必要スコープ: `update:organization_discovery_domains`（ドメイン強制検証）、`read:users`・`create:organization_members`（既存ユーザーの直接追加）、`read:organization_connections`（メンバー招待フォームのユーザーストア一覧取得） | frontend |
+| `mgmt-client-secret` | 上記 M2M アプリの Client Secret | frontend |
+
+**nexuscrm-redis-secret**
+
+| キー | 設定値 |
+|---|---|
+| `redis-url` | セッション本体の保存先Redisの接続文字列（`redis://host:port`、認証付きなら `redis://:<password>@host:port`）。未設定の場合、frontend は既定のCookieベースセッションにフォールバックする（`frontend/src/lib/auth0.ts`、CLAUDE.md「Role-based menu and route gating」直後のセッションストア節参照） |
+
+> AWS ElastiCacheがサポートするRedis OSSの最新バージョンは **7.1**（[AWS公式ドキュメント](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/engine-versions.html)に明記、Redis 8系は未対応）で、ElastiCacheの7.1はRedis OSS 7.0と互換とされている。ローカル（`docker-compose.yml`）も`redis:7.0-alpine`に揃えてあるため、ElastiCacheを作成する際は engine version `7.1` を指定すること。
 
 **nexuscrm-alb-secret**
 

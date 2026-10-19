@@ -120,7 +120,104 @@ Auth0 ダッシュボード → **Organizations > Create Organization** でテ�
 
 MCP サービス (`services/mcp/.env`) の設定については [services/mcp/README.md](services/mcp/README.md) を参照してください。
 
-### 5. Auth0 Event Streams によるユーザー同期（`auth0events`）
+### 5. My Organization API（Early Access）によるIdentity Provider / ドメイン / SCIM Provisioning / メンバー管理
+
+ダッシュボードの `/settings/identity-providers`・`/settings/domains`・`/settings/members` から、Okta WorkforceのEnterprise Connectionとそのドメイン・SCIM Provisioning・Organizationメンバーを管理する機能です（対象strategyは`okta`のみ）。背景・制約の詳細は[CLAUDE.mdの該当セクション](CLAUDE.md)を参照してください。
+
+#### 前提: テナントでEarly Accessを有効化
+
+Auth0 ダッシュボード → **Applications > APIs > My Organization API** を開き、有効化します（テナントによっては非表示の場合があります）。
+
+#### Applicationへの設定
+
+同じ画面の **Application Access** タブで、frontendのApplicationに対して：
+
+1. アクセスを許可（Client Grantを作成）し、以下のスコープを有効化：
+
+| Scope |
+|---|
+| `read:my_org:identity_providers` |
+| `create:my_org:identity_providers` |
+| `update:my_org:identity_providers` |
+| `delete:my_org:identity_providers` |
+| `read:my_org:domains` |
+| `create:my_org:domains` |
+| `update:my_org:domains` |
+| `delete:my_org:domains` |
+| `create:my_org:identity_providers_domains` |
+| `delete:my_org:identity_providers_domains` |
+| `read:my_org:identity_providers_provisioning` |
+| `create:my_org:identity_providers_provisioning` |
+| `update:my_org:identity_providers_provisioning` |
+| `delete:my_org:identity_providers_provisioning` |
+| `read:my_org:identity_providers_scim_tokens` |
+| `create:my_org:identity_providers_scim_tokens` |
+| `delete:my_org:identity_providers_scim_tokens` |
+| `read:my_org:members` |
+| `delete:my_org:memberships` |
+| `read:my_org:member_invitations` |
+| `create:my_org:member_invitations` |
+| `delete:my_org:member_invitations` |
+
+2. `my_organization_configuration` を設定（Management API `PATCH /api/v2/clients/{client_id}` 経由。Dashboard上に設定UIがない場合はこちらを使用）：
+
+```json
+{
+  "my_organization_configuration": {
+    "connection_profile_id": "<Connection ProfileのID>",
+    "user_attribute_profile_id": "<User Attribute ProfileのID>",
+    "allowed_strategies": ["okta"],
+    "connection_deletion_behavior": "allow_if_empty"
+  }
+}
+```
+
+Connection Profile・User Attribute Profileが未作成の場合は先に作成してください（[Connection Profile](https://auth0.com/docs/authenticate/enterprise-connections/connection-profile)）。Connection Profileの`organization.show_as_button`/`organization.assign_membership_on_login`が`none`だと、個々のIdentity Provider側で同名のオプションを有効化できません。
+
+#### ユーザーへのパーミッション割り当て（RBAC）
+
+Client Grantだけでは不十分で、操作するユーザー自身にも上記と同じ`my_org:*`パーミッションがRBAC経由で割り当てられている必要があります（実効スコープはApplicationとユーザーの両方の交差で決まる）。
+
+Auth0 ダッシュボード → **User Management > Roles** でパーミッションを含むRoleを作成し、対象ユーザーに割り当ててください。割り当て後は再ログインが必要です。
+
+#### 環境変数への反映
+
+`frontend/.env.local` に追加（`.env.local.example` 参照）：
+
+| 変数 | 値 |
+|---|---|
+| `AUTH0_MY_ORG_SCOPE` | 上記スコープをスペース区切りで列挙したもの |
+
+#### ドメイン検証バイパス（デモ用、省略可）
+
+`/settings/domains` の「検証済みにする（デモ用）」ボタンは、実際のDNS TXTレコード検証を行わず、Management API経由でドメインを強制的に`verified`扱いにします。この機能を使う場合のみ、以下が必要です。
+
+1. 専用のMachine to Machine Applicationを作成し、Management API（`https://<your-domain>.auth0.com/api/v2/`）に対して `update:organization_discovery_domains` スコープを認可する（メンバー管理機能も使う場合は、下記「メンバー承認」の手順でさらに`read:users`・`create:organization_members`も同じApplicationに追加する）
+2. `frontend/.env.local` に追加：
+
+| 変数 | 値 |
+|---|---|
+| `AUTH0_MGMT_CLIENT_ID` | 上記M2MアプリのClient ID |
+| `AUTH0_MGMT_CLIENT_SECRET` | 上記M2MアプリのClient Secret |
+
+この機能を使わない場合は、`/settings/domains`で「検証を開始」から実際のDNS TXTレコードを設定して検証してください。
+
+#### SCIM Provisioning
+
+`/settings/identity-providers` の各Identity Provider行で「SCIM」をクリックすると、SCIM Provisioningの有効化・SCIM Endpoint URLの確認・SCIMトークンの発行/削除ができます。SCIM Endpoint URL（`https://<your-domain>.auth0.com/scim/v2/connections/<connection_id>`）は、作成したOkta WorkforceアプリケーションのSCIM設定画面に貼り付けて使用してください。SCIMトークンの生の値は発行直後のみ表示されるため、必ずその場でコピーしてください。属性マッピング（User ID Attribute含む）はAPI側で自由編集ができず、User Attribute Profile側の定義から再取得するのみです（詳細はCLAUDE.md参照）。
+
+#### メンバー管理
+
+`/settings/members` では、Organizationの現在のメンバー一覧（チェックボックスで複数選択して一括削除）・メールアドレスでの招待・検証済みドメインのメールアドレスを持つテナント内の未参加ユーザー（「承認待ちのユーザー」としてチェックボックス一覧表示、一括承認）を管理できます。
+
+「承認」機能（検証済みドメインのユーザーをテナント内から検索して直接メンバー追加）はMy Organization APIではなく**Management API専用**（既存ユーザーの直接追加はMy Org APIに存在しないため）です。上記「ドメイン検証バイパス」で作成したM2M Applicationに、以下のスコープを追加してください。
+
+| Scope |
+|---|
+| `read:users` |
+| `create:organization_members` |
+
+### 6. Auth0 Event Streams によるユーザー同期（`auth0events`）
 
 Okta（SCIM）などの外部IdPからAuth0にプロビジョニングされたユーザー・Organizationメンバーシップの変更を、Auth0 Management APIを使わずリアルタイムに`user`サービスへ反映する仕組みです。背景・設計の詳細は[CLAUDE.mdの該当セクション](CLAUDE.md)を参照してください。
 

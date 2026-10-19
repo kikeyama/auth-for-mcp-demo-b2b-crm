@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useUser } from '@auth0/nextjs-auth0/client';
+import { hasRole, TENANT_ADMIN_ROLE, DEV_ROLE } from '@/lib/roles';
 import {
   LayoutDashboard, Building2, Briefcase, Users, ClipboardList,
-  KeyRound, ShieldCheck, ChevronLeft, ChevronRight, type LucideIcon,
+  KeyRound, ShieldCheck, Fingerprint, Globe, UserCog, ChevronLeft, ChevronRight, type LucideIcon,
 } from 'lucide-react';
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
@@ -17,6 +19,12 @@ const navItems: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const adminNavItems: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/settings/members',            label: 'メンバー管理',          icon: UserCog },
+  { href: '/settings/domains',            label: 'ドメイン管理',          icon: Globe },
+  { href: '/settings/identity-providers', label: 'Identity Provider',    icon: Fingerprint },
+];
+
+const debugNavItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/debug/mcp-discovery', label: 'MCP認可ディスカバリー', icon: ShieldCheck },
   { href: '/debug/mcp-token',     label: 'MCPトークン',          icon: KeyRound },
 ];
@@ -43,12 +51,15 @@ function NavLink({ href, label, icon: Icon, active, collapsed }: {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useUser();
   const [collapsed, setCollapsed] = useState(false);
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isTenantAdmin = hasRole(user, TENANT_ADMIN_ROLE);
+  const isDev = hasRole(user, DEV_ROLE);
 
   return (
     <aside className={`min-h-screen bg-brand-700 text-white flex flex-col flex-shrink-0 transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
-      <div className={`flex items-center border-b border-brand-900 py-5 ${collapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
+      <div className={`flex items-center py-5 ${collapsed ? 'justify-center px-2' : 'justify-between px-6'}`}>
         {!collapsed && <span className="text-xl font-bold tracking-tight">NexusCRM</span>}
         <button
           onClick={() => setCollapsed((c) => !c)}
@@ -63,17 +74,32 @@ export function Sidebar() {
           <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
         ))}
       </nav>
-      <div className="px-3">
-        <div className="border-t border-brand-900 mx-3 mb-3" />
-        {!collapsed && (
-          <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-brand-100/60">管理</p>
-        )}
-        <div className="space-y-1">
-          {adminNavItems.map((item) => (
-            <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
-          ))}
+      {isTenantAdmin && (
+        <div className="px-3">
+          <div className="border-t border-brand-100/60 mx-3 mb-3" />
+          {!collapsed && (
+            <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-brand-100/60">テナント管理</p>
+          )}
+          <div className="space-y-1">
+            {adminNavItems.map((item) => (
+              <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+      {isDev && (
+        <div className="px-3">
+          <div className="border-t border-brand-100/60 mx-3 mb-3 mt-3" />
+          {!collapsed && (
+            <p className="px-3 mb-1.5 text-xs font-semibold uppercase tracking-wider text-brand-100/60">デバッグ</p>
+          )}
+          <div className="space-y-1">
+            {debugNavItems.map((item) => (
+              <NavLink key={item.href} {...item} active={isActive(item.href)} collapsed={collapsed} />
+            ))}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
