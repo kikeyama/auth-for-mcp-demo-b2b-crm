@@ -309,3 +309,89 @@ Carlos Mostek（同スレッド、2026-07-21）：
 ### 評価
 
 Okta自身が発行するIdPドメイン（`*.okta.com`）に対してXAAを有効化する一般的なユースケースにおいて、顧客側のセルフサービスでこの前提条件を満たす手段が存在しない。My Organization APIが「Organization管理者への委任」を目的として設計されている以上、この要件はEarly Access段階の未解決のギャップであり、Okta/Auth0自身のIdPを使う構成（このデモがまさにそれ）でセルフサービス運用が成立しない状態のままGA化するのは時期尚早と判断する。
+
+---
+
+## [infra] OpenTelemetry Collectorのヘルスチェックトレースが除外できない（`filter`プロセッサの誤用。`tail_sampling`で解決済み）【解決済み】
+
+**日付**: 2026-10-27
+**優先度**: 解決済み
+
+### 現象
+
+各サービスの`tracing.ts`/`frontend/src/instrumentation.ts`は`ignoreIncomingRequestHook`で`/healthz`系パスを除外しているが、`frontend`（Next.js）だけはJaeger上に`GET /api/healthz/live`等のトレースが残り続けた。
+
+### 原因（確定）
+
+1. **Next.js自身の組み込み計装が原因で、アプリ側のフックが効かない対象がある**: Next.jsは`@opentelemetry/instrumentation-http`とは独立に、自前のルートスパン（`next.span_type: BaseServer.handleRequest`、`AppRouteRouteHandlers.runHandler`）と、`src/proxy.ts`（ミドルウェア）実行を表す`Middleware.execute`スパンを生成する（公式ドキュメント"Default Spans in Next.js"参照、https://nextjs.org/docs/app/guides/open-telemetry）。これらは`ignoreIncomingRequestHook`（`instrumentation-http`固有のオプション）の対象外のため、`frontend`のみ`/api/healthz`系のトレースがアプリ側のフックをすり抜けて漏れていた。
+2. Collector側の対処として最初に`filter`プロセッサ（OTTLの`trace_conditions`、span単位の削除）を導入したところ、**ルートスパン（`http.route`属性を持つ）だけが削除され、`http.route`/`http.target`を持たない子スパン（`resolve page components`等）が親を失って孤立トレースとして残る**という新しい問題が発生した。`filter`プロセッサはspan単位の判定であり、トレース全体を単位にした削除ではないため。
+3. `tail_sampling`プロセッサの`drop`ポリシーに切り替えた最初の実装でも、健全なトレースの一部（`middleware GET`、`next.span_type: Middleware.execute`、`span.kind: internal`）がまだ漏れた。原因は`drop_sub_policy`配列内の複数エントリが**AND条件**で評価される仕様（OpenTelemetry Collector Contribのソースコード`processor/tailsamplingprocessor/internal/sampling/drop.go`の`Evaluate()`で確認: 1つでも`NotSampled`を返すsub-policyがあれば即座に`NotSampled`を返す、つまり全sub-policyが`Sampled`を返した場合のみ`Dropped`になる）。`http.route`を見るsub-policyと`http.target`を見るsub-policyを1つの`drop_sub_policy`配列にまとめていたため、「`http.route`は無いが`http.target`はhealthz系」というスパン（`Middleware.execute`）では`http.route`側のsub-policyが（属性不在→`NotSampled`相当の判定）で短絡し、ドロップされなかった。
+
+### 対応（解決済み）
+
+`otel-collector-conf`ConfigMap（本リポジトリ外で管理、k8s `observability` namespace）の`tail_sampling`プロセッサを、`http.route`用・`http.target`用の**2つの独立した`drop`ポリシー**に分割（top-level の複数ポリシーは、いずれか1つが`Dropped`を返せば全体がdropされるOR的な短絡評価のため、分割することで正しくOR条件になる）。`always_sample`ポリシーを明示的に追加（`tail_sampling`はどのポリシーも`sample`を返さない場合は既定で`NotSampled`になるため、これが無いと全トレースが消えてしまう）。パイプラインの`processors`順序は`[tail_sampling, batch]`（`tail_sampling`は`trace_id`単位のグルーピングが前提のため`batch`より前に置く必要がある）。
+
+---
+
+## [frontend] Redis（ioredis）へのアクセスがOpenTelemetryトレースに出ない（App Router + TurbopackのESM出力による構造的制約。手動計装で回避済み）
+
+**日付**: 2026-10-27
+**優先度**: 中（手動計装で回避済みだが、根本原因はNext.js/Turbopack側の制約であり、自動計装では解決できない）
+
+### 現象
+
+`frontend/src/lib/redisSessionStore.ts`経由のRedisアクセス（`get`/`set`/`update`/`delete`）が、Jaeger上に一切スパンとして現れない。`dns`・`net`（Node.js core module）の計装スパンは正常に出ており、Redisコマンド自体（`DEBUG=ioredis:*`で確認）は正常に実行されている。
+
+### 調査過程と原因（確定）
+
+1. 最初に`@opentelemetry/auto-instrumentations-node@^0.79.0`が依存する`@opentelemetry/instrumentation-ioredis@0.69.0`のサポート対象バージョン範囲（`InstrumentationNodeModuleDefinition('ioredis', ['>=2.0.0 <6'], ...)`）が、このプロジェクトが使う`ioredis@6.0.0`を対象外としていることが判明。`@opentelemetry/auto-instrumentations-node@^0.81.2`（`instrumentation-ioredis@0.71.0`、対応範囲`>=2.0.0 <7`に拡張済み）へ更新し、9サービス全て（frontend + 8マイクロサービス）のバージョンを揃えた。
+2. バージョンを揃えてもなお、`ioredis`のスパンは一切出なかった。`OTEL_LOG_LEVEL=debug`で計装のパッチ適用ログ（`Applying instrumentation patch for ... on require hook`）を確認したところ、`dns`/`net`（Node.js core module）は出るが`ioredis`（ユーザーランドパッケージ）だけ一切出ない、という切り分けができた。
+3. `.next/dev/server/`配下に`import-in-the-middle`パッケージの存在を発見。これはESM用のモジュールフック機構で、OTel自動計装が内部で使う`require-in-the-middle`（CommonJSの`require()`をフックする仕組み）とは別物。OpenTelemetry公式ドキュメント（https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/esm-support.md）に明記: "If your application is written in JavaScript as ESM... **a loader hook is required** to properly patch instrumentation."（`--experimental-loader=@opentelemetry/instrumentation/hook.mjs`というNode.js起動時フラグが必要）。
+4. Next.jsのApp Router + Turbopack構成では、サーバーコードがESM形式でコンパイルされる。`frontend/src/instrumentation.ts`の`register()`内で`getNodeAutoInstrumentations()`を呼ぶ方式は、CommonJS用のフック（`require-in-the-middle`）しか設定できず、ESM経由でimportされる`ioredis`には一切作用しない。`dns`/`net`はNode.js core moduleで別のパッチ経路（`register()`実行時に即座にパッチされる、requireフック不要）を使うため正常に動いていた。
+5. ESM用のローダーフックはNode.jsプロセス起動時のコマンドラインオプションが必要で、`register()`関数内（アプリケーションコード、プロセス起動後に実行される）から後付けで有効化する手段は存在しない。
+
+参考として、ユーザーの過去の別プロジェクト（Pages Router + Webpack、サーバーコードがCommonJSとしてコンパイルされる構成）では同じ`new IORedisInstrumentation()`を使う実装パターンが正常に動作していたことを確認した。これは実装パターンの違いではなく、**ルーター種別・バンドラーの違いによるサーバーコードの出力形式（CommonJS vs ESM）の違い**が原因であることが分かった。
+
+### 対応（解決済み）
+
+`redisSessionStore.ts`内で、自動計装に頼らず`@opentelemetry/api`の`tracer.startActiveSpan()`による手動計装を実装（`get`/`set`/`update`/`delete`/`deleteByLogoutToken`の全メソッドを`withSpan()`ヘルパーでラップ）。属性は`@opentelemetry/instrumentation-ioredis`が実際に使う属性名（`ATTR_DB_SYSTEM_NAME`/`ATTR_DB_OPERATION_NAME`/`ATTR_DB_QUERY_TEXT`、`SpanKind.CLIENT`）に合わせ、他サービスの自動計装によるRedis/DBスパンと見た目を揃えている。これはOpenTelemetry公式ドキュメントが推奨する"Custom Spans"パターン（https://nextjs.org/docs/app/guides/open-telemetry#custom-spans）でもある。
+
+**他8サービス（Express、CommonJSビルド）はこの制約を受けない。** `services/*/src/tracing.ts`の自動計装（`getNodeAutoInstrumentations()`経由）だけで`pg`等のDBアクセスのトレースが正しく機能する。この制約はNext.jsのApp Router + Turbopackを使うサービス（このプロジェクトでは`frontend`のみ）に限定される。
+
+---
+
+## [frontend] Server Component経由のページ（`/dashboard`等）で、ミドルウェア（`proxy.ts`）実行分が本体リクエストと別トレースに分断される（Next.js 16.3の既知のリグレッション。16.4.3で修正済み）
+
+**日付**: 2026-10-27
+**優先度**: 中（データは欠落していない。トレースの分断による見た目上の問題で、実害は限定的。Next.js更新で解消見込み）
+
+### 現象
+
+前項（Redis手動計装）導入後、実機（k8sのJaegerに実際にトレース送信）で確認したところ、`frontend/src/lib/redisSessionStore.ts`のスパン自体は正しく記録されていたが、**どのトレースに紐付くかがアクセス経路によって異なっていた**：
+
+- **BFF Route Handler経由**（例: `GET /api/admin/members/candidates`）: `middleware GET`実行分と本体のリクエスト処理が**正しく同じトレース内**に収まり、`get`（Redisスパン）も本体トレースの中に表示される。
+- **Server Componentのページレンダリング経由**（例: `GET /dashboard`）: ミドルウェア（`src/proxy.ts`）実行分が**完全に別の独立したトレース**（`middleware GET`という名前の単独トレース、`Total Spans`が本体より少ない）として分離され、その中にRedisスパンが閉じ込められる。本体の`GET /dashboard`トレース側にはミドルウェア分のRedisアクセスは現れない。
+
+### 原因（確定、Next.js自身の既知バグ）
+
+GitHub Issue「[Next.js middleware tracing produces two traces per request](https://github.com/vercel/next.js/issues/91282)」で、Next.jsメンテナ自身が`Bug`としてラベル付けし確認済みの回帰。Issue本文の引用：
+
+> "middleware tracing creates two separate, disconnected OpenTelemetry traces for a single server request... This causes real problems with APM tools... customers see this as 'doubled traces' when upgrading **16.2 → 16.3**."
+
+このプロジェクトの`frontend`が使う`next`は**16.3.0**で、まさにこの回帰が入ったバージョンと一致する。回帰の原因はPR #95306（"otel: Use correct parent span for Node.js middleware"）。
+
+### 修正状況（確認済み）
+
+GitHubリリースページ（`gh api repos/vercel/next.js/releases/tags/v16.4.3`）で確認：
+
+```
+[lts-active] Keep OpenTelemetry request traces together (#100349, #100294, #100324, #100350, #100552, #100583) (#100542)
+```
+
+**`v16.4.3`（LTS-activeへのバックポート、2026-10-23公開）で修正済み。** 元の修正PR #100294（"Keep middleware and render in one OpenTelemetry trace as siblings"）は、ミドルウェアとルートレンダリングを同一トレース内の**兄弟span**として扱う形に変更された（最初の実装PR #100136は一度revertされ、#100294で再実装されている）。canary版では`v16.5.0-canary.23`（2026-10-22公開）が最初の収録版。
+
+このプロジェクトの`next`（`^16.2.10`、インストール済み16.3.0）はこの修正を含まない。`16.4.3`以降へのアップグレードで解消する見込み（未検証、アップグレード自体はこの調査の範囲外）。
+
+### 対応方針（近日中に対応予定）
+
+実害は「トレースの見た目上の分断」のみで、スパン自体のデータは欠落していない（Redisアクセスの属性・所要時間は正しく記録されている）ため、今回は原因の特定・記録のみで実装対応を見送った。ただし`next`は近いうちに`16.4.3`以降へアップグレードする予定（2026-10-27、ユーザー判断）。**`@auth0/nextjs-auth0`（現在`^4.31.1`）もNext.jsのバージョンに合わせて同時に見直すこと** — `next`のメジャー/マイナー更新時は、SDKがそのバージョンのApp Router/Server Components APIと互換か確認が必要（過去にもNext.js側のMiddleware/Server Components仕様変更がSDKの前提と衝突した経緯があるため、CLAUDE.mdの「MRRT」「Session storage」関連セクション参照）。
