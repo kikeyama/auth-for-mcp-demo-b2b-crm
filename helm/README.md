@@ -127,12 +127,19 @@ kubectl create secret generic nexuscrm-alb-secret \
 
 ## デプロイ方法
 
+ECR レジストリ（AWS アカウント ID を含む）は git に載せないため、デプロイ時に `--set global.imageRegistry=...` で渡す。AWS CLI で自動取得すると、ID をどこにも書かずに済む:
+
 ```bash
+REGISTRY="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.ap-northeast-1.amazonaws.com"
+
 helm upgrade --install nexuscrm ./charts/nexuscrm \
   --namespace nexuscrm \
   --create-namespace \
+  --set global.imageRegistry=$REGISTRY \
   --set-file dbInit.sql=../database/init.sql
 ```
+
+`global.imageRegistry` が未設定だと `helm template` / `helm upgrade` は `global.imageRegistry is required` で失敗する。
 
 ### イメージタグの上書き
 
@@ -141,8 +148,9 @@ CI/CD で特定サービスのタグを指定する場合:
 ```bash
 helm upgrade nexuscrm ./charts/nexuscrm \
   --namespace nexuscrm \
+  --set global.imageRegistry=$REGISTRY \
   --set-file dbInit.sql=../database/init.sql \
-  --set services.account.image=222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:v1.2.3
+  --set services.account.image=nexuscrm-account:v1.2.3
 ```
 
 ### ⚠️ Docker イメージのビルド時は `--platform linux/amd64` を必須指定
@@ -151,7 +159,7 @@ EKS ノードは `amd64` だが、Apple Silicon Mac（`arm64`）で `docker buil
 
 ```bash
 docker build --platform linux/amd64 --provenance=false \
-  -t 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-<service>:<tag> \
+  -t <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-<service>:<tag> \
   --push .
 ```
 

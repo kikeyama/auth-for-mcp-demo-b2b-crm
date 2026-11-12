@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: {{ $name }}
-          image: {{ $svc.image }}
+          image: {{ printf "%s/%s" (required "global.imageRegistry is required (pass --set global.imageRegistry=<account-id>.dkr.ecr.<region>.amazonaws.com)" $.Values.global.imageRegistry) $svc.image }}
           imagePullPolicy: Always
           resources:
             limits:

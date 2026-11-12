@@ -1,5 +1,9 @@
 # デフォルト値（services 配下で上書き可能）
 global:
+  # ECRレジストリ（<account-id>.dkr.ecr.<region>.amazonaws.com）。アカウントIDを含むため
+  # コミットせず、デプロイ時に --set global.imageRegistry=... で渡す（helm/README.md参照）。
+  # 各サービスのimageはこのレジストリを前置して使われる（services.<name>.image は "リポジトリ名:タグ" の形式）。
+  imageRegistry: ""
   replicas: 1
   containerPort: 3000
   resources:
@@ -28,7 +32,7 @@ dbInit:
 #             secretEnv より後に定義するため、$(SECRET_VAR) 補完で secretEnv の値を参照できる。
 services:
   account:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-account:3174c5c
+    image: nexuscrm-account:8317561
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -52,7 +56,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   opportunity:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-opportunity:3174c5c
+    image: nexuscrm-opportunity:8317561
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -76,7 +80,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   contact:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-contact:3174c5c
+    image: nexuscrm-contact:8317561
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -100,7 +104,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   activity:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-activity:f06df8f
+    image: nexuscrm-activity:8317561
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -124,7 +128,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   user:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-user:3174c5c
+    image: nexuscrm-user:8317561
     role: microservices
     secretEnv:
       DATABASE_HOST:
@@ -154,7 +158,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   frontend:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-frontend:324be16
+    image: nexuscrm-frontend:8317561
     healthcheck:
       live: /api/healthz/live
       ready: /api/healthz/ready
@@ -215,7 +219,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   mcp:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-mcp:3174c5c
+    image: nexuscrm-mcp:8317561
     ingress:
       enabled: true
       hostSecretKey: mcp-host        # nexuscrm-alb-secret のキー名
@@ -253,7 +257,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   auth0logs:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0logs:3174c5c
+    image: nexuscrm-auth0logs:8317561
     role: microservices        # microservices-sg-policy（frontend/mcp からの inbound）を適用
     public: true               # public-sg-policy（ALB からの inbound）も併用適用。1つの Pod に複数の SecurityGroupPolicy が一致する場合、
                                 # 各ポリシーの SG は加算される（本番検証済み。ドキュメントに明記は無いが実際の挙動）
@@ -271,7 +275,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
 
   auth0events:
-    image: 222634407479.dkr.ecr.ap-northeast-1.amazonaws.com/nexuscrm-auth0events:3174c5c
+    image: nexuscrm-auth0events:8317561
     role: microservices        # microservices-sg-policy（frontend/mcp/user からの inbound）を適用
     public: true               # public-sg-policy（ALB からの inbound）も併用適用。auth0logsと同じ隔離パターン
     ingress:
