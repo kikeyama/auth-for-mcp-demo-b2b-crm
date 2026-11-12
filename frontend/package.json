@@ -9,7 +9,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@auth0/nextjs-auth0": "^4.31.1",
+    "@auth0/nextjs-auth0": "^4.33.0",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/auto-instrumentations-node": "^0.81.2",
     "@opentelemetry/semantic-conventions": "^1.43.0",
@@ -17,7 +17,7 @@
     "ioredis": "^6.0.0",
     "lru-cache": "^11.5.3",
     "lucide-react": "^1.25.0",
-    "next": "^16.2.10",
+    "next": "^16.4.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.9.0"
@@ -29,7 +29,7 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.19",
     "eslint": "^9.31.0",
-    "eslint-config-next": "^16.2.10",
+    "eslint-config-next": "^16.4.6",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.2"

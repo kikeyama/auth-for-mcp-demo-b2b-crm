@@ -52,7 +52,7 @@ async function request<T>(method: Method, path: string, scope: string, body?: un
   const text = await res.text();
   // SDK組み込みプロキシ（/my-org/*）は、アクセストークン取得自体に失敗した場合
   // （audienceへのscope未許可、client grant未設定など）、JSONではなくOAuth2Errorの
-  // プレーンテキスト（またはメッセージのみ）を500で返す。My Org API自体が返す
+  // プレーンテキスト（またはメッセージのみ）を返す（SDK 4.32.0以降は401、それ以前は500）。My Org API自体が返す
   // エラーレスポンス（JSON、ValidationErrorBadRequestResponse等）とは形式が異なるため、
   // JSON.parseを無条件に投げず、まずJSONかどうかを判定する。
   let data: Record<string, unknown> | undefined;

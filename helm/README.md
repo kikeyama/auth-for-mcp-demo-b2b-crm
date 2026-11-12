@@ -211,7 +211,7 @@ services:        # サービスごとの定義
       ready: /api/healthz/ready
     ingress:
       enabled: true
-      host: nexuscrm.a0japan.solutions
+      host: nexuscrm.example.com
     # env/secretEnv なし — ビルド時にイメージへ焼き込み済み
 ```
 
@@ -266,10 +266,10 @@ DB 初期化 Job は `pre-install` hook として**通常リソースより先�
 | サービス | role ラベル | public ラベル | Ingress |
 |---|---|---|---|
 | account / opportunity / contact / activity / user | microservices | - | なし（クラスタ内部のみ） |
-| frontend | - | - | あり (`nexuscrm.a0japan.solutions`) |
-| mcp | - | - | あり (`nexuscrm-mcp.a0japan.solutions`) |
-| auth0logs | microservices | `"true"` | あり (`nexuscrm-auth0logs.a0japan.solutions`)。Auth0 Log Stream の Webhook 受信専用。`role: microservices`（`microservices-sg-policy`、frontend/mcp からの inbound）と `public: "true"`（`public-sg-policy`、ALB からの inbound）の2つのラベルを持ち、両方の SecurityGroupPolicy が同時に適用される |
-| auth0events | microservices | `"true"` | あり (`nexuscrm-auth0events.a0japan.solutions`)。Auth0 Event Streams の Webhook 受信専用、`user` サービス経由で `users` テーブルを非同期同期。ラベル構成は auth0logs と同一パターン |
+| frontend | - | - | あり (`nexuscrm.example.com`) |
+| mcp | - | - | あり (`nexuscrm-mcp.example.com`) |
+| auth0logs | microservices | `"true"` | あり (`nexuscrm-auth0logs.example.com`)。Auth0 Log Stream の Webhook 受信専用。`role: microservices`（`microservices-sg-policy`、frontend/mcp からの inbound）と `public: "true"`（`public-sg-policy`、ALB からの inbound）の2つのラベルを持ち、両方の SecurityGroupPolicy が同時に適用される |
+| auth0events | microservices | `"true"` | あり (`nexuscrm-auth0events.example.com`)。Auth0 Event Streams の Webhook 受信専用、`user` サービス経由で `users` テーブルを非同期同期。ラベル構成は auth0logs と同一パターン |
 
 フロントエンドのヘルスチェックパスは `/api/healthz/live` / `/api/healthz/ready`（他は `/healthz/live` / `/healthz/ready`）。
 
